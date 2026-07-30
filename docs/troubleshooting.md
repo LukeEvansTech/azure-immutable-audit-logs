@@ -193,7 +193,7 @@ And the path traps, again, because they are worth repeating:
 
 - `m=` after `y=` is the **month**; `m=` after `h=` is the **minute**
 - the workspace resource ID inside the path is **lowercased**, so a prefix built from the portal's casing will not match
-- the filename spelling is contested - `PT5M.json` and `PT05M.json` both circulate, and the deployment behind this documentation produced `PT5M.json`. Glob the folder instead of hard-coding either
+- the filename spelling is contested - `PT5M.json` and `PT05M.json` both circulate, and the deployment behind this documentation produced `PT5M.json`. Glob the folder instead of hardcoding either
 - busy windows overflow into numbered siblings - enumerate the folder
 
 ## Rule and destination limits

@@ -93,7 +93,7 @@ WorkspaceResourceId=<lowercased workspace resource id>/y=2026/m=07/d=30/h=16/m=2
 !!! danger "Three ways this path bites"
 
     - **`m=` appears twice.** After `y=` it is the month; after `h=` it is the minute.
-    - **The filename spelling is contested.** `PT5M.json` and `PT05M.json` both circulate. Every blob written by the deployment behind this documentation was `PT5M.json`. Do not hard-code either - glob the folder.
+    - **The filename spelling is contested.** `PT5M.json` and `PT05M.json` both circulate. Every blob written by the deployment behind this documentation was `PT5M.json`. Do not hardcode either - glob the folder.
     - **Busy windows overflow** into numbered siblings in the same folder. Enumerate it rather than fetching one known filename, or you will silently drop the busiest five minutes of the day.
 
 Download a day:
