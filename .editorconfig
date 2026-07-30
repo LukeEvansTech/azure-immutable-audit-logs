@@ -1,4 +1,11 @@
 # https://editorconfig.org/
+#
+# indent_size here drives the formatters - shfmt for shell, dotnet format for
+# C#, Prettier for the rest - and those formatters are what CI enforces.
+# editorconfig-checker's own indentation check is switched off in
+# .github/linters/.ecrc: it cannot tell code from a string literal, so it reads
+# the aligned help text inside a heredoc as misindented code. The formatters
+# have no such blind spot, so nothing is lost by leaving it to them.
 root = true
 
 [*]
@@ -16,3 +23,12 @@ trim_trailing_whitespace = false
 # House convention: shell scripts indent 4 spaces (shfmt reads this).
 [*.{bash,sh}]
 indent_size = 4
+
+# C# convention is 4 spaces, and `dotnet format` enforces it from here.
+[*.cs]
+indent_size = 4
+
+# Bicep convention is 2 spaces, which matches the [*] default; stated
+# explicitly so it survives a change to that default.
+[*.bicep]
+indent_size = 2

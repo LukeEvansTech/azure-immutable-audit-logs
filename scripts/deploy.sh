@@ -39,21 +39,48 @@ SKIP_APP=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --resource-group) RESOURCE_GROUP="${2:-}"; shift 2 ;;
-        --location)       LOCATION="${2:-}"; shift 2 ;;
-        --subscription)   SUBSCRIPTION="${2:-}"; shift 2 ;;
-        --parameters)     PARAM_FILE="${2:-}"; shift 2 ;;
-        --enable-auth)    ENABLE_AUTH=true; shift ;;
-        --skip-app)       SKIP_APP=true; shift ;;
-        -h|--help)        usage 0 ;;
-        *) echo "Unknown option: $1" >&2; usage ;;
+    --resource-group)
+        RESOURCE_GROUP="${2:-}"
+        shift 2
+        ;;
+    --location)
+        LOCATION="${2:-}"
+        shift 2
+        ;;
+    --subscription)
+        SUBSCRIPTION="${2:-}"
+        shift 2
+        ;;
+    --parameters)
+        PARAM_FILE="${2:-}"
+        shift 2
+        ;;
+    --enable-auth)
+        ENABLE_AUTH=true
+        shift
+        ;;
+    --skip-app)
+        SKIP_APP=true
+        shift
+        ;;
+    -h | --help) usage 0 ;;
+    *)
+        echo "Unknown option: $1" >&2
+        usage
+        ;;
     esac
 done
 
-[[ -n "$RESOURCE_GROUP" ]] || { echo "Error: --resource-group is required." >&2; usage; }
+[[ -n "$RESOURCE_GROUP" ]] || {
+    echo "Error: --resource-group is required." >&2
+    usage
+}
 
 for tool in az jq zip; do
-    command -v "$tool" >/dev/null 2>&1 || { echo "Error: $tool is required but not installed." >&2; exit 1; }
+    command -v "$tool" >/dev/null 2>&1 || {
+        echo "Error: $tool is required but not installed." >&2
+        exit 1
+    }
 done
 
 if [[ "$SKIP_APP" == false ]]; then
@@ -177,7 +204,7 @@ if [[ "$ENABLE_AUTH" == true ]]; then
         trap 'rm -f "$SETTINGS_FILE"' EXIT
         jq -n --arg v "$CLIENT_SECRET" \
             '[{name: "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET", value: $v, slotSetting: false}]' \
-            > "$SETTINGS_FILE"
+            >"$SETTINGS_FILE"
         az webapp config appsettings set \
             --name "$APP_SERVICE_NAME" \
             --resource-group "$RESOURCE_GROUP" \

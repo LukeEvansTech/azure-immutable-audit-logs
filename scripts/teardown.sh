@@ -35,18 +35,36 @@ ASSUME_YES=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --resource-group)   RESOURCE_GROUP="${2:-}"; shift 2 ;;
-        --storage-account)  STORAGE_ACCOUNT="${2:-}"; shift 2 ;;
-        --purge-workspace)  PURGE_WORKSPACE=true; shift ;;
-        --yes)              ASSUME_YES=true; shift ;;
-        -h|--help)          usage 0 ;;
-        *) echo "Unknown option: $1" >&2; usage ;;
+    --resource-group)
+        RESOURCE_GROUP="${2:-}"
+        shift 2
+        ;;
+    --storage-account)
+        STORAGE_ACCOUNT="${2:-}"
+        shift 2
+        ;;
+    --purge-workspace)
+        PURGE_WORKSPACE=true
+        shift
+        ;;
+    --yes)
+        ASSUME_YES=true
+        shift
+        ;;
+    -h | --help) usage 0 ;;
+    *)
+        echo "Unknown option: $1" >&2
+        usage
+        ;;
     esac
 done
 
 [[ -n "$RESOURCE_GROUP" ]] || usage
 
-command -v az >/dev/null 2>&1 || { echo "Error: az is required but not installed." >&2; exit 1; }
+command -v az >/dev/null 2>&1 || {
+    echo "Error: az is required but not installed." >&2
+    exit 1
+}
 
 az group show --name "$RESOURCE_GROUP" --output none 2>/dev/null || {
     echo "Resource group $RESOURCE_GROUP does not exist. Nothing to do."
@@ -63,6 +81,7 @@ if [[ -n "$STORAGE_ACCOUNT" && "$STORAGE_ACCOUNT" != "None" ]]; then
     echo "==> Checking retention policies on $STORAGE_ACCOUNT"
 
     LOCKED=()
+    UNLOCKED=()
     while IFS= read -r container; do
         [[ -n "$container" ]] || continue
         STATE=$(az storage container immutability-policy show \
@@ -70,7 +89,10 @@ if [[ -n "$STORAGE_ACCOUNT" && "$STORAGE_ACCOUNT" != "None" ]]; then
             --resource-group "$RESOURCE_GROUP" \
             --container-name "$container" \
             --query 'state' --output tsv 2>/dev/null || echo "")
-        [[ "$STATE" == "Locked" ]] && LOCKED+=("$container")
+        case "$STATE" in
+        Locked) LOCKED+=("$container") ;;
+        Unlocked) UNLOCKED+=("$container") ;;
+        esac
     done < <(az storage container list \
         --account-name "$STORAGE_ACCOUNT" \
         --auth-mode login \
@@ -94,7 +116,46 @@ EOF
         exit 1
     fi
 
-    echo "    no locked policies, safe to proceed"
+    # Unlocked policies still block deletion.
+    #
+    # It is tempting to assume "unlocked" means "harmless", because the
+    # documentation's headline is that unlocked policies do not provide delete
+    # protection. That applies to an *expired* policy. While the retention
+    # period is still running, storage account deletion fails if any container
+    # holds at least one blob, whether or not the policy is locked - so with the
+    # six-year default, an untouched unlocked policy blocks teardown for six
+    # years just as effectively as a locked one.
+    #
+    # The difference, and the whole reason to deploy unlocked, is that an
+    # unlocked policy can simply be removed first. That is what this does.
+    if [[ ${#UNLOCKED[@]} -gt 0 ]]; then
+        echo "    removing ${#UNLOCKED[@]} unlocked retention polic(ies) so the account can be deleted"
+        for container in "${UNLOCKED[@]}"; do
+            ETAG=$(az storage container immutability-policy show \
+                --account-name "$STORAGE_ACCOUNT" \
+                --resource-group "$RESOURCE_GROUP" \
+                --container-name "$container" \
+                --query 'etag' --output tsv 2>/dev/null || echo "")
+
+            if [[ -z "$ETAG" ]]; then
+                echo "      $container: policy vanished between listing and delete, skipping"
+                continue
+            fi
+
+            if az storage container immutability-policy delete \
+                --account-name "$STORAGE_ACCOUNT" \
+                --resource-group "$RESOURCE_GROUP" \
+                --container-name "$container" \
+                --if-match "$ETAG" \
+                --output none 2>/dev/null; then
+                echo "      $container: policy removed"
+            else
+                echo "      $container: could not remove policy - deletion may fail" >&2
+            fi
+        done
+    else
+        echo "    no retention policies to remove"
+    fi
 fi
 
 WORKSPACE_NAME=""
@@ -109,7 +170,10 @@ if [[ "$ASSUME_YES" != true ]]; then
     echo "This will delete the resource group $RESOURCE_GROUP and everything in it."
     printf 'Type the resource group name to confirm: '
     read -r CONFIRMATION
-    [[ "$CONFIRMATION" == "$RESOURCE_GROUP" ]] || { echo "Aborted."; exit 1; }
+    [[ "$CONFIRMATION" == "$RESOURCE_GROUP" ]] || {
+        echo "Aborted."
+        exit 1
+    }
 fi
 
 echo "==> Deleting resource group $RESOURCE_GROUP"
@@ -122,7 +186,7 @@ if [[ "$PURGE_WORKSPACE" == true && -n "$WORKSPACE_NAME" && "$WORKSPACE_NAME" !=
     az monitor log-analytics workspace delete \
         --resource-group "$RESOURCE_GROUP" \
         --workspace-name "$WORKSPACE_NAME" \
-        --force true --yes --output none 2>/dev/null || \
+        --force true --yes --output none 2>/dev/null ||
         echo "    purge failed or was unnecessary - the workspace may already be gone"
 fi
 

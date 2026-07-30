@@ -39,19 +39,40 @@ CONTAINERS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --resource-group)  RESOURCE_GROUP="${2:-}"; shift 2 ;;
-        --storage-account) STORAGE_ACCOUNT="${2:-}"; shift 2 ;;
-        --container)       CONTAINERS+=("${2:-}"); shift 2 ;;
-        --yes)             ASSUME_YES=true; shift ;;
-        -h|--help)         usage 0 ;;
-        *) echo "Unknown option: $1" >&2; usage ;;
+    --resource-group)
+        RESOURCE_GROUP="${2:-}"
+        shift 2
+        ;;
+    --storage-account)
+        STORAGE_ACCOUNT="${2:-}"
+        shift 2
+        ;;
+    --container)
+        CONTAINERS+=("${2:-}")
+        shift 2
+        ;;
+    --yes)
+        ASSUME_YES=true
+        shift
+        ;;
+    -h | --help) usage 0 ;;
+    *)
+        echo "Unknown option: $1" >&2
+        usage
+        ;;
     esac
 done
 
 [[ -n "$RESOURCE_GROUP" && -n "$STORAGE_ACCOUNT" ]] || usage
 
-command -v az >/dev/null 2>&1 || { echo "Error: az is required but not installed." >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { echo "Error: jq is required but not installed." >&2; exit 1; }
+command -v az >/dev/null 2>&1 || {
+    echo "Error: az is required but not installed." >&2
+    exit 1
+}
+command -v jq >/dev/null 2>&1 || {
+    echo "Error: jq is required but not installed." >&2
+    exit 1
+}
 
 if [[ ${#CONTAINERS[@]} -eq 0 ]]; then
     while IFS= read -r name; do
@@ -62,7 +83,10 @@ if [[ ${#CONTAINERS[@]} -eq 0 ]]; then
         --query "[?starts_with(name, 'am-')].name" --output tsv 2>/dev/null || true)
 fi
 
-[[ ${#CONTAINERS[@]} -gt 0 ]] || { echo "Error: no containers to lock." >&2; exit 1; }
+[[ ${#CONTAINERS[@]} -gt 0 ]] || {
+    echo "Error: no containers to lock." >&2
+    exit 1
+}
 
 echo
 echo "About to LOCK retention on:"
@@ -100,7 +124,10 @@ EOF
 if [[ "$ASSUME_YES" != true ]]; then
     printf 'Type LOCK to continue: '
     read -r CONFIRMATION
-    [[ "$CONFIRMATION" == "LOCK" ]] || { echo "Aborted."; exit 1; }
+    [[ "$CONFIRMATION" == "LOCK" ]] || {
+        echo "Aborted."
+        exit 1
+    }
 fi
 
 for container in "${CONTAINERS[@]}"; do

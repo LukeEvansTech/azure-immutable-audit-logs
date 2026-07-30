@@ -32,14 +32,14 @@ Common reasons to need this:
 
 Two entry points, sharing the same retention module.
 
-| | `infra/main.bicep` | `infra/retention-only.bicep` |
-|---|---|---|
-| **For** | Seeing it work end to end | Production |
-| Log Analytics workspace | Created | **Yours**, untouched |
-| Application Insights | Created | Untouched |
-| Demo app emitting events | Created | Not deployed |
-| WORM storage + containers + policies | Created | Created |
-| Data Export rule | Created | Created |
+|                                      | `infra/main.bicep`        | `infra/retention-only.bicep` |
+| ------------------------------------ | ------------------------- | ---------------------------- |
+| **For**                              | Seeing it work end-to-end | Production                   |
+| Log Analytics workspace              | Created                   | **Yours**, untouched         |
+| Application Insights                 | Created                   | Untouched                    |
+| Demo app emitting events             | Created                   | Not deployed                 |
+| WORM storage + containers + policies | Created                   | Created                      |
+| Data Export rule                     | Created                   | Created                      |
 
 Start with `main.bicep` in a throwaway resource group. It stands up a small web app with a test console that emits the audit and security event types, so you can watch a record travel the whole path and land as a blob. Then use `retention-only.bicep` against the workspace you actually care about.
 

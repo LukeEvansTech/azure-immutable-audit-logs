@@ -9,7 +9,7 @@ An archive nobody can read is not much better than no archive. An archive anyone
 Two places hold the same records, and which one you use is decided by how old the data is.
 
 | | Log Analytics | Blob storage |
-|---|---|---|
+| --- | --- | --- |
 | **Covers** | The workspace retention window (default 30 days) | The full retention period (default 6 years) |
 | **Interface** | KQL | File download plus local filtering |
 | **Good for** | Filtering, joining, aggregating, "show me everything this user did" | Bulk export, anything older than the hot window |

@@ -36,31 +36,59 @@ TEST_IMMUTABILITY=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --resource-group)    RESOURCE_GROUP="${2:-}"; shift 2 ;;
-        --storage-account)   STORAGE_ACCOUNT="${2:-}"; shift 2 ;;
-        --workspace-guid)    WORKSPACE_GUID="${2:-}"; shift 2 ;;
-        --test-immutability) TEST_IMMUTABILITY=true; shift ;;
-        -h|--help)           usage 0 ;;
-        *) echo "Unknown option: $1" >&2; usage ;;
+    --resource-group)
+        RESOURCE_GROUP="${2:-}"
+        shift 2
+        ;;
+    --storage-account)
+        STORAGE_ACCOUNT="${2:-}"
+        shift 2
+        ;;
+    --workspace-guid)
+        WORKSPACE_GUID="${2:-}"
+        shift 2
+        ;;
+    --test-immutability)
+        TEST_IMMUTABILITY=true
+        shift
+        ;;
+    -h | --help) usage 0 ;;
+    *)
+        echo "Unknown option: $1" >&2
+        usage
+        ;;
     esac
 done
 
 [[ -n "$RESOURCE_GROUP" && -n "$STORAGE_ACCOUNT" ]] || usage
 
-command -v az >/dev/null 2>&1 || { echo "Error: az is required but not installed." >&2; exit 1; }
+command -v az >/dev/null 2>&1 || {
+    echo "Error: az is required but not installed." >&2
+    exit 1
+}
 
 PASS=0
 FAIL=0
 WARN=0
 
-ok()   { echo "  [ ok ] $*"; PASS=$((PASS + 1)); }
-bad()  { echo "  [FAIL] $*"; FAIL=$((FAIL + 1)); }
-warn() { echo "  [warn] $*"; WARN=$((WARN + 1)); }
+ok() {
+    echo "  [ ok ] $*"
+    PASS=$((PASS + 1))
+}
+bad() {
+    echo "  [FAIL] $*"
+    FAIL=$((FAIL + 1))
+}
+warn() {
+    echo "  [warn] $*"
+    WARN=$((WARN + 1))
+}
 
 # macOS has no timeout(1). Run a command in the background and kill it if it
 # outlives the deadline, so a hung Azure call cannot wedge the whole script.
 run_with_timeout() {
-    local seconds="$1"; shift
+    local seconds="$1"
+    shift
     "$@" >/dev/null 2>&1 &
     local pid=$!
     local waited=0
@@ -83,7 +111,10 @@ echo "---------------"
 ACCOUNT_JSON=$(az storage account show \
     --name "$STORAGE_ACCOUNT" \
     --resource-group "$RESOURCE_GROUP" \
-    --output json 2>/dev/null) || { bad "storage account $STORAGE_ACCOUNT not found in $RESOURCE_GROUP"; exit 1; }
+    --output json 2>/dev/null) || {
+    bad "storage account $STORAGE_ACCOUNT not found in $RESOURCE_GROUP"
+    exit 1
+}
 
 ok "storage account exists ($(jq -r '.sku.name' <<<"$ACCOUNT_JSON") in $(jq -r '.location' <<<"$ACCOUNT_JSON"))"
 
@@ -237,9 +268,9 @@ if [[ "$TEST_IMMUTABILITY" == true ]]; then
             set -e
 
             case "$RESULT" in
-                0)   bad "a blob in $TARGET_CONTAINER was DELETED - retention is not being enforced" ;;
-                124) ok "delete of $TARGET_BLOB did not succeed (timed out against the policy)" ;;
-                *)   ok "delete of $TARGET_BLOB was rejected, as it should be" ;;
+            0) bad "a blob in $TARGET_CONTAINER was DELETED - retention is not being enforced" ;;
+            124) ok "delete of $TARGET_BLOB did not succeed (timed out against the policy)" ;;
+            *) ok "delete of $TARGET_BLOB was rejected, as it should be" ;;
             esac
         fi
     fi

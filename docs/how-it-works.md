@@ -42,7 +42,7 @@ The practical consequence is that **no application change is needed beyond the `
 These are independent, and conflating them is the most common design mistake.
 
 | | Workspace retention | Blob retention |
-|---|---|---|
+| --- | --- | --- |
 | Set by | `workspaceRetentionDays` | `retentionDays` |
 | Default | 30 days | 2190 days (6 years) |
 | What it buys | KQL, joins, detections, dashboards | Durability and tamper resistance |
@@ -94,6 +94,12 @@ For an archive whose whole value is that nothing in it can have been altered, "e
 
 **Unlocked and locked are genuinely different.** Both enforce retention against normal deletes. Only locked survives an administrator who wants the data gone - and only locked cannot be undone by you either. Deploy unlocked, confirm the pipeline works, then lock deliberately.
 
+!!! warning "Unlocked does not mean disposable"
+
+    While the retention period is running, storage account deletion fails if any container holds at least one blob, **whether or not the policy is locked**. On the six-year default, an untouched unlocked policy blocks teardown for six years exactly as a locked one would.
+
+    The difference is that an unlocked policy can be *removed first*, after which deletion proceeds normally. `scripts/teardown.sh` does that automatically. The commonly quoted line that "unlocked policies don't provide delete protection" is true only of policies whose retention period has already **expired**.
+
 !!! danger "Locking cannot be reversed"
 
     Once locked, a policy cannot be removed, shortened or unlocked by anyone, including subscription owners and Microsoft support. The period can only be extended. The storage account and its resource group cannot be deleted until every blob has passed its retention - six years, for the default.
@@ -118,7 +124,7 @@ Adaptive sampling is on by default in the Application Insights ASP.NET Core SDK.
 
 That is a good trade for performance monitoring and a bad one here. A sampled audit archive is not a complete account of what the application did, and nothing at query time can recover a record that was never sent. Worse, it fails quietly: the archive looks complete, and its incompleteness only surfaces when someone asks for a specific event that was dropped.
 
-The demo app therefore constructs the SDK with `EnableAdaptiveSampling = false`. **If you take one thing from this repo into your own application, take that.**
+The demo app therefore constructs the SDK with `EnableAdaptiveSampling = false`. **If you take one thing from this repository into your own application, take that.**
 
 A related habit: aggregate with `sum(ItemCount)` rather than `count()`. With sampling off the two agree. If they ever disagree, sampling has been turned back on somewhere.
 

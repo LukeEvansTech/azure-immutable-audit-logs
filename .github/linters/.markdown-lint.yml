@@ -1,0 +1,25 @@
+# markdownlint config, read by super-linter.
+#
+# Two rules are disabled, both because they are incompatible with how these
+# docs are written rather than because the docs are wrong.
+
+# MD013 line-length.
+#
+# The documentation is soft-wrapped - one line per paragraph, no hard newlines
+# mid-sentence. That is deliberate: these files render to HTML and get pasted
+# into other tools, and hard wrapping travels with the paste and reflows badly.
+# A line-length rule cannot coexist with that.
+MD013: false
+
+# MD046 code-block-style.
+#
+# Material/pymdownx admonitions (`!!! note`) carry their body as a 4-space
+# indented block. markdownlint has no concept of them, so it reads every
+# admonition body as an indented code block and then objects that the file also
+# contains fenced ones. There is no way to satisfy it short of abandoning
+# admonitions, which the docs site is built around.
+MD046: false
+
+# Everything else is left at super-linter's defaults on purpose, including
+# MD060 table-column-style - the tables are formatted to satisfy it rather than
+# the rule being turned off.

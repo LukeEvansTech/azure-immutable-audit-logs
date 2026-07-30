@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- **Azure CLI**, signed in (`az login`). Bicep support is built in; `az bicep version` confirms it.
-- **jq** and **zip**, used by the scripts.
+- **Azure CLI**, signed in (`az login`). Bicep support is built-in; `az bicep version` confirms it.
+- **jq** and **`zip`**, used by the scripts.
 - **.NET 10 SDK**, only if you are publishing the demo app. Not needed for `--skip-app` or for the production template.
 
 If you use [mise](https://mise.jdx.dev), `mise install` picks up the pinned versions from `.mise.toml`.
@@ -13,7 +13,7 @@ If you use [mise](https://mise.jdx.dev), `mise install` picks up the pinned vers
 The two templates need different things, because the export rule is created at the workspace and the workspace may live somewhere else entirely.
 
 | Scope | Role | Needed for |
-|---|---|---|
+| --- | --- | --- |
 | Target resource group | Contributor | Creating the storage account and, for the demo, the app and workspace |
 | Workspace's resource group | Log Analytics Contributor | Creating the export rule |
 | Storage account | Storage Blob Data Reader or higher | Reading blobs back, including from `verify.sh` |

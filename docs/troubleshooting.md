@@ -105,11 +105,39 @@ Treat the records written before that point as unprotected, and be prepared to s
 
 ## Teardown fails, or `teardown.sh` refuses to run
 
-Expected, if any policy is **locked**. A locked policy cannot be removed by anyone, and the storage account cannot be deleted until every blob has passed its retention period - six years, on the default.
+### If the policy is locked
+
+Expected, and unfixable. A locked policy cannot be removed by anyone, and the storage account cannot be deleted until every blob has passed its retention period - six years, on the default.
 
 `teardown.sh` checks first and stops rather than half-deleting the resource group. If you need the rest gone, delete the other resources individually and leave the storage account.
 
 This is why the demo should never be locked.
+
+### If the policy is unlocked
+
+`az group delete` still fails, with a message about the account being protected by an immutability policy. This surprises people, because the documentation's headline is that unlocked policies do not provide delete protection.
+
+That statement is about **expired** policies. The full rule:
+
+| Policy state | Storage account deletion |
+| --- | --- |
+| Active (retention period still running), locked **or unlocked** | Fails if any container holds at least one blob |
+| Expired, unlocked | Allowed |
+| Expired, locked | Fails |
+
+So on the six-year default, an untouched *unlocked* policy blocks teardown for six years just as effectively as a locked one. The difference - and the entire reason to deploy unlocked - is that an unlocked policy can be **removed first**:
+
+```bash
+ETAG=$(az storage container immutability-policy show \
+  --account-name <storage-account> --resource-group <rg> \
+  --container-name am-appevents --query etag -o tsv)
+
+az storage container immutability-policy delete \
+  --account-name <storage-account> --resource-group <rg> \
+  --container-name am-appevents --if-match "$ETAG"
+```
+
+`teardown.sh` does this automatically for every unlocked container before deleting the resource group, so you should not need the commands above unless you are tearing down by hand.
 
 ## Redeploying fails on the workspace name
 

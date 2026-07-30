@@ -2,7 +2,7 @@
 
 Ship application audit and security events into write-once, read-many (WORM) blob storage, where they cannot be altered or deleted for a fixed retention period, using only Azure Monitor plumbing that is already there.
 
-Bicep-provisioned, one command up, one command down. Includes a demo app that emits the events, so you can watch a record travel the whole path end to end.
+Bicep-provisioned, one command up, one command down. Includes a demo app that emits the events, so you can watch a record travel the whole path end-to-end.
 
 **Documentation: <https://lukeevanstech.github.io/azure-immutable-audit-logs/>**
 
@@ -53,14 +53,14 @@ When you are finished:
 
 Two entry points, sharing the same retention module.
 
-| | `infra/main.bicep` | `infra/retention-only.bicep` |
-|---|---|---|
-| **For** | Seeing it work end to end | Production |
-| Log Analytics workspace | Created | **Yours**, untouched |
-| Application Insights | Created | Untouched |
-| Demo app | Created | Not deployed |
-| WORM storage, containers, policies | Created | Created |
-| Data Export rule | Created | Created |
+|                                    | `infra/main.bicep`        | `infra/retention-only.bicep` |
+| ---------------------------------- | ------------------------- | ---------------------------- |
+| **For**                            | Seeing it work end-to-end | Production                   |
+| Log Analytics workspace            | Created                   | **Yours**, untouched         |
+| Application Insights               | Created                   | Untouched                    |
+| Demo app                           | Created                   | Not deployed                 |
+| WORM storage, containers, policies | Created                   | Created                      |
+| Data Export rule                   | Created                   | Created                      |
 
 `retention-only.bicep` adds the retention tier to a workspace you already own, creating nothing inside it beyond the export rule. It handles the workspace living in a different resource group or subscription from the storage account.
 
@@ -92,20 +92,24 @@ See the [deployment guide](https://lukeevanstech.github.io/azure-immutable-audit
 
 **This cannot be undone.** A locked policy cannot be removed, shortened or unlocked by anyone. The period can only be extended, and neither the storage account nor its resource group can be deleted until every blob has passed its retention - six years, on the default. Decide the retention period before locking, and never lock the demo.
 
+Nothing locks anything automatically. Both templates deploy policies **unlocked**, and `lock-retention.sh` is the only thing that locks, interactively, after making you type `LOCK`.
+
+> **Unlocked does not mean disposable.** While the retention period is running, storage account deletion fails if any container holds a blob, whether or not the policy is locked. The difference is that an unlocked policy can be _removed first_ - `teardown.sh` does that for you before deleting the resource group. The often-quoted line that "unlocked policies don't provide delete protection" applies only once the retention period has **expired**.
+
 ## Repository layout
 
-| Path | Contents |
-|---|---|
-| `infra/` | `main.bicep`, `retention-only.bicep`, shared `modules/`, example parameters |
-| `app/` | .NET 10 demo app and its test console UI |
-| `scripts/` | `deploy.sh`, `verify.sh`, `lock-retention.sh`, `teardown.sh` |
-| `docs/` | Documentation site source (Zensical) |
+| Path       | Contents                                                                    |
+| ---------- | --------------------------------------------------------------------------- |
+| `infra/`   | `main.bicep`, `retention-only.bicep`, shared `modules/`, example parameters |
+| `app/`     | .NET 10 demo app and its test console UI                                    |
+| `scripts/` | `deploy.sh`, `verify.sh`, `lock-retention.sh`, `teardown.sh`                |
+| `docs/`    | Documentation site source (Zensical)                                        |
 
 ## Verification
 
 CI builds both Bicep templates and both parameter files, compiles and publishes the app with warnings as errors, runs ShellCheck over the scripts, and builds the docs site.
 
-There is no unit test suite: the app is a telemetry emitter with no logic worth isolating, and the meaningful verification is end to end, which is what `scripts/verify.sh` does against a live deployment. It checks container protection, blob arrival, and the KQL surfaces, and optionally attempts a delete that must fail.
+There is no unit test suite: the app is a telemetry emitter with no logic worth isolating, and the meaningful verification is end-to-end, which is what `scripts/verify.sh` does against a live deployment. It checks container protection, blob arrival, and the KQL surfaces, and optionally attempts a delete that must fail.
 
 ## Cost
 
