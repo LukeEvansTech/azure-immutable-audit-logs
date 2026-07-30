@@ -24,7 +24,7 @@ param location string
 @maxValue(146000)
 param retentionDays int = 2190
 
-@description('Storage redundancy. Zone-redundant is the minimum for a record set that must survive a datacentre failure; geo-zone-redundant is preferred for production. Locally-redundant is deliberately not offered.')
+@description('Storage redundancy. Zone-redundant is the minimum for a record set that must survive a datacentre failure; geo-zone-redundant is preferred for production. Locally-redundant is not offered.')
 @allowed([
   'Standard_ZRS'
   'Standard_GZRS'
@@ -45,7 +45,7 @@ param diagnosticSettingName string
 @description('Public IP ranges permitted to reach the storage account, for administrative and retrieval access. Empty means no public IP is allowed and only the Azure Monitor platform path can write.')
 param allowedIpRanges array = []
 
-@description('Whether account key authorisation is permitted. Leaving this false forces every read through Entra ID, which is what makes the reader identity appear in the access logs.')
+@description('Whether account key authorisation is permitted. Leaving this false forces every read through Entra ID, so the access logs name the reader.')
 param allowSharedKeyAccess bool = false
 
 @description('Tags applied to the storage account.')

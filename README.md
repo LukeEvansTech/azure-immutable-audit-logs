@@ -84,11 +84,11 @@ az deployment group create \
 
 See the [deployment guide](https://lukeevanstech.github.io/azure-immutable-audit-logs/deployment/) for permissions, deriving the workspace from an Application Insights component, and adding tables later.
 
-## Design decisions worth knowing
+## Design decisions behind it
 
 - **Containers are created with retention policies already attached**, before the export rule exists. Letting export create its own containers and applying policies afterwards leaves a window where records land unprotected - and a later policy does not retrospectively cover them.
 - **Shared key access is off by default**, so every read goes through Entra ID and appears in the blob access log with the reader's identity. With keys enabled, reads are recorded as anonymous.
-- **Telemetry sampling is disabled in the app.** It is on by default in the SDK, and it silently discards a proportion of events - which is right for performance monitoring and wrong for an archive whose value is completeness.
+- **Telemetry sampling is disabled in the app.** It is on by default in the SDK, and it drops a proportion of events without recording that it did. Right for performance monitoring, wrong for an archive whose value is completeness.
 - **Locking is a separate script with its own confirmation.** Policies deploy unlocked. Locking is irreversible, and `scripts/lock-retention.sh` makes you type `LOCK`.
 - **`teardown.sh` refuses to run against locked policies**, because the delete would fail part-way and strand the resource group.
 
@@ -102,7 +102,7 @@ See the [deployment guide](https://lukeevanstech.github.io/azure-immutable-audit
 
 Nothing locks anything automatically. Both templates deploy policies **unlocked**, and `lock-retention.sh` is the only thing that locks, interactively, after making you type `LOCK`.
 
-> **Unlocked still protects the data, but never traps you.** Under an active unlocked policy a blob delete is rejected with `BlobImmutableDueToPolicy`, exactly as under a locked one - so the demo genuinely demonstrates immutability. Deleting the storage account, however, succeeds and takes the blobs with it. That asymmetry is the entire practical difference: **unlocked means you can always get rid of it.** Locked removes that escape hatch for the full retention period.
+> **Unlocked still protects the data, but never traps you.** Under an active unlocked policy a blob delete is rejected with `BlobImmutableDueToPolicy`, exactly as under a locked one - so the demo genuinely demonstrates immutability. Deleting the storage account, however, succeeds and takes the blobs with it. That asymmetry is the practical difference between the two: unlocked means you can always get rid of it, locked means you cannot until the retention period runs out.
 
 ## Repository layout
 

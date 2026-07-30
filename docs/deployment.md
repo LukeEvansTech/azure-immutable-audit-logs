@@ -170,7 +170,7 @@ Locking cannot be expressed in a template. It is a separate operation that has t
 
 Every table in `exportTables` must already exist in the workspace. A table that has never received data does not exist, and naming it fails the whole rule rather than just that one table. This is the most common way a first deployment fails.
 
-`StorageBlobLogs` cannot be included on the first run. It comes from the blob diagnostics these templates create, so it does not exist until after the first deployment has completed and emitted a record. **Adding it on a later run is worth doing**: it brings the record of who has read the archive onto the same retention path as the archive itself, which is usually the entire point of keeping the archive.
+`StorageBlobLogs` cannot be included on the first run. It comes from the blob diagnostics these templates create, so it does not exist until after the first deployment has completed and emitted a record. **Add it on a later run.** It puts the record of who has read the archive under the same protection as the archive, which is normally why you are keeping one.
 
 To add a table, uncomment it in the parameters file and redeploy. The matching container is created with its retention policy at the same time as the rule is updated.
 

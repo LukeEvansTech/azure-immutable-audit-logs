@@ -3,8 +3,8 @@
 # Deploy the self-contained demo: infrastructure, then the app, then optionally
 # Entra ID authentication in front of it.
 #
-# Retention policies are created unlocked. Locking them is a separate, deliberate
-# and irreversible step - see scripts/lock-retention.sh.
+# Retention policies are created unlocked. Locking them is a separate and
+# irreversible step - see scripts/lock-retention.sh.
 
 set -euo pipefail
 

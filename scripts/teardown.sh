@@ -116,8 +116,8 @@ EOF
         exit 1
     fi
 
-    # Unlocked policies need no special handling here, which is worth stating
-    # because the opposite is a natural assumption.
+    # Unlocked policies need no special handling here. Most people expect the
+    # opposite, so this is spelled out rather than left implicit.
     #
     # An unlocked policy protects the DATA: deleting a blob under an active
     # unlocked policy is rejected with BlobImmutableDueToPolicy, exactly as

@@ -13,7 +13,7 @@
 // else in your workspace.
 //
 // Retention policies are created UNLOCKED. Unlocked still enforces the retention
-// period, but an administrator can remove it. Locking is a separate, deliberate,
+// period, but an administrator can remove it. Locking is a separate and
 // irreversible step - see the deployment guide.
 
 targetScope = 'resourceGroup'
@@ -35,7 +35,7 @@ param location string = resourceGroup().location
 @maxValue(146000)
 param retentionDays int = 2190
 
-@description('Storage redundancy for the retention tier. Locally-redundant is deliberately not offered: a record set that must survive a datacentre failure needs at least zone redundancy.')
+@description('Storage redundancy for the retention tier. Locally-redundant is not offered: a record set that must survive a datacentre failure needs at least zone redundancy.')
 @allowed([
   'Standard_ZRS'
   'Standard_GZRS'
@@ -67,7 +67,7 @@ param exportTables array = [
 @description('Public IP ranges permitted to reach the storage account, for administrative and retrieval access. Empty means no public IP is allowed and only the Azure Monitor platform path can write.')
 param allowedIpRanges array = []
 
-@description('Whether account key authorisation is permitted on the retention tier. Leaving this false forces every read through Entra ID, which is what makes the reader identity appear in the access logs. Retrieval evidence depends on it.')
+@description('Whether account key authorisation is permitted on the retention tier. Leaving this false forces every read through Entra ID, so the reader identity lands in the access logs. Retrieval evidence depends on it.')
 param allowSharedKeyAccess bool = false
 
 @description('Tags applied to every resource.')
@@ -109,8 +109,8 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 // ---------------------------------------------------------------------------
 // Application Insights
 //
-// Workspace-based, which is what makes the data queryable in Log Analytics and
-// therefore exportable. A classic component stores its data outside any
+// Workspace-based, so the data is queryable in Log Analytics and therefore
+// exportable. A classic component stores its data outside any
 // workspace and cannot be exported from at all.
 // ---------------------------------------------------------------------------
 

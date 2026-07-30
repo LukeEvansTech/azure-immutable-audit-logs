@@ -35,7 +35,7 @@ param workspaceResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000
 // after: locking permits extension only, never reduction.
 // param retentionDays = 2190
 
-// Storage redundancy. Locally-redundant is deliberately not offered.
+// Storage redundancy. Locally-redundant is not offered.
 // param storageSku = 'Standard_ZRS'
 
 // Tables to export, one container each.

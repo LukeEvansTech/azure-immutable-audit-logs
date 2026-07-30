@@ -23,7 +23,7 @@ using 'main.bicep'
 // after: locking permits extension only, never reduction.
 // param retentionDays = 2190
 
-// Storage redundancy. Locally-redundant is deliberately not offered - a record
+// Storage redundancy. Locally-redundant is not offered, because a record
 // set that must survive a datacentre failure needs at least zone redundancy.
 // param storageSku = 'Standard_ZRS'
 
@@ -43,7 +43,7 @@ using 'main.bicep'
 // workspace-based Application Insights component, AppServiceHTTPLogs with the
 // App Service diagnostic setting.
 //
-// StorageBlobLogs is deliberately absent: it does not exist until the blob
+// StorageBlobLogs is left out for a reason: it does not exist until the blob
 // diagnostics created here have emitted their first record, so it can only be
 // added on a later run. Doing so is worthwhile - it brings the record of who
 // read the archive onto the same retention path as the archive itself.

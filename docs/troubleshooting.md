@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Failures worth knowing about before you hit them.
+The failures you are most likely to hit, and what each one actually means.
 
 ## Nothing has arrived in storage
 
@@ -84,7 +84,7 @@ This is intended behaviour. Key-authorised reads appear in the access log as ano
 
 ## The portal downloaded a blob but no user appears in the logs
 
-The portal silently prefers the **account key** whenever your identity can retrieve one. Check the authentication method at the top of the container view in **Storage browser** and switch it to Entra ID.
+The portal prefers the **account key** whenever your identity can retrieve one, and does not say so. Check the authentication method at the top of the container view in **Storage browser** and switch it to Entra ID.
 
 A key-authorised read is recorded with `AuthenticationType` of shared key and an empty `RequesterUpn`. It cannot be attributed to a person after the fact.
 
@@ -115,9 +115,9 @@ This is why the demo should never be locked.
 
 ### If the policy is unlocked
 
-Teardown works, and needs no special handling. This is worth stating because the opposite is a reasonable assumption: if a blob cannot be deleted, surely the account holding it cannot either.
+Teardown works, and needs no special handling. Most people expect the opposite, on the reasonable grounds that if a blob cannot be deleted, the account holding it should not be either.
 
-It can. The protection is scoped to the data, not the container of it. Checked against a live deployment with an active, unexpired policy and blobs present:
+It can. The policy protects the blobs, not the account holding them. Checked against a live deployment with an active, unexpired policy and blobs present:
 
 | Operation | Unlocked | Locked |
 | --- | --- | --- |
@@ -189,7 +189,7 @@ jq -c '.' < PT05M.json          # per line
 jq -s '.' < PT05M.json          # slurp into an array
 ```
 
-And the path traps, again, because they are worth repeating:
+And the path traps again, since this is where people meet them:
 
 - `m=` after `y=` is the **month**; `m=` after `h=` is the **minute**
 - the workspace resource ID inside the path is **lowercased**, so a prefix built from the portal's casing will not match

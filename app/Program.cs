@@ -88,7 +88,7 @@ app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// Liveness probe. Deliberately emits no telemetry: App Service polls it
+// Liveness probe. Emits no telemetry, on purpose: App Service polls it
 // continuously, and a health check in the audit archive is pure noise.
 app.MapGet("/healthz", () => Results.Ok(new { status = "healthy" }));
 

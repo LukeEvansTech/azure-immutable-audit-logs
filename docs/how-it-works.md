@@ -53,7 +53,7 @@ The workspace is the **hot window**: where you investigate, hunt and build detec
 
 Set the workspace window to however long you realistically investigate over - 30 to 90 days for most people - and let the blobs carry the statutory tail. There is no benefit to paying workspace rates for six years of data you will query twice.
 
-## What Data Export does, precisely
+## What Data Export actually does
 
 Data Export is a workspace-level rule that continuously copies rows from named tables into a storage account as they arrive. It is not a scheduled job and there is nothing to run.
 
@@ -61,7 +61,7 @@ Data Export is a workspace-level rule that continuously copies rows from named t
 
 **After that, latency is around five minutes.** Rows are batched into five-minute windows.
 
-**One container per table**, named `am-` followed by the lowercased table name. `AppEvents` becomes `am-appevents`. This is not configurable. The templates here create containers from the same list that feeds the export rule, so the two cannot drift - and if they ever did, export would silently create its own container without a retention policy on it, which is worth alerting on.
+**One container per table**, named `am-` followed by the lowercased table name. `AppEvents` becomes `am-appevents`. This is not configurable. The templates here build the container list from the same array that feeds the export rule, so the two cannot drift. If they ever do, export creates its own container with no retention policy on it, and nothing tells you. Alert on it.
 
 ### Blob layout
 
@@ -72,7 +72,7 @@ WorkspaceResourceId=/subscriptions/<sub>/resourcegroups/<rg>/providers/microsoft
 
 Three things about that path catch people out:
 
-1. **`m=` appears twice and means different things.** The segment after `y=` is the month. The segment after `h=` is the minute. A parser that assumes the first `m=` it finds is the month will be right two thirds of the time and silently wrong otherwise.
+1. **`m=` appears twice and means different things.** The segment after `y=` is the month. The segment after `h=` is the minute. A parser that takes the first `m=` as the month is right two thirds of the time and wrong the rest, with nothing to show for it.
 2. **The workspace resource ID in the path is lowercased**, including the `resourcegroups` and `microsoft.operationalinsights` segments. A prefix match built from the resource ID as the portal displays it will not match.
 3. **Overflow files sit alongside.** Where a five-minute window exceeds 50,000 appends, the surplus lands as a numbered sibling in the same folder. Enumerate the folder; do not assume one file per window.
 
@@ -98,11 +98,11 @@ For an archive whose whole value is that nothing in it can have been altered, "e
 
 **The retention clock runs from last modification, not creation.** Because these are append blobs, a blob becomes eligible for deletion the retention period after the *final* append to it, not after it was created. A six-year policy on a blob appended to for five minutes expires six years and five minutes after it first appeared.
 
-**Unlocked and locked are genuinely different.** Both enforce retention against normal deletes. Only locked survives an administrator who wants the data gone - and only locked cannot be undone by you either. Deploy unlocked, confirm the pipeline works, then lock deliberately.
+**Unlocked and locked differ in one specific way.** Both enforce retention against normal deletes. Only locked survives an administrator who wants the data gone, and only locked cannot be undone by you either. Deploy unlocked, confirm the pipeline works, then lock.
 
 !!! note "Unlocked protects the data, not the account"
 
-    The two states differ in a way that is easy to get backwards, so it is worth stating precisely. Both were checked against a live deployment with an active, unexpired policy and blobs present:
+    People often get this the wrong way round. Every row below was checked against a live deployment with an active, unexpired policy and blobs present:
 
     | Operation | Unlocked | Locked |
     | --- | --- | --- |
@@ -110,9 +110,9 @@ For an archive whose whole value is that nothing in it can have been altered, "e
     | Overwrite a blob | Rejected | Rejected |
     | Delete the storage account | **Succeeds** | Fails until retention expires |
 
-    So an unlocked policy is a real immutability guarantee for the data while the account exists - the demo is not a pretence. What it does not do is trap you: you can always delete the account and take the archive with it.
+    An unlocked policy is a real immutability guarantee for the data while the account exists, so the demo is not a pretence. It just does not trap you: you can always delete the account and take the archive with it.
 
-    Locking removes that escape hatch. That is the point of locking, and the reason it is irreversible.
+    Locking closes that route off, which is why it cannot be reversed.
 
 !!! danger "Locking cannot be reversed"
 
@@ -142,7 +142,7 @@ The demo app therefore constructs the SDK with `EnableAdaptiveSampling = false`.
 
 A related habit: aggregate with `sum(ItemCount)` rather than `count()`. With sampling off the two agree. If they ever disagree, sampling has been turned back on somewhere.
 
-## Limits worth knowing
+## Limits
 
 - A workspace supports at most **10 active export rules**.
 - A storage account can be the destination of **only one rule** on a given workspace.

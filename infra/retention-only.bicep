@@ -13,7 +13,7 @@
 // emits events, deploy main.bicep instead.
 //
 // Retention policies are created UNLOCKED. Unlocked still enforces the retention
-// period, but an administrator can remove it. Locking is a separate, deliberate,
+// period, but an administrator can remove it. Locking is a separate and
 // irreversible step - see the deployment guide.
 
 targetScope = 'resourceGroup'
@@ -43,7 +43,7 @@ param location string = resourceGroup().location
 @maxValue(146000)
 param retentionDays int = 2190
 
-@description('Storage redundancy. Zone-redundant is the minimum for a record set that must survive a datacentre failure; geo-zone-redundant is preferred for production. Locally-redundant is deliberately not offered.')
+@description('Storage redundancy. Zone-redundant is the minimum for a record set that must survive a datacentre failure; geo-zone-redundant is preferred for production. Locally-redundant is not offered.')
 @allowed([
   'Standard_ZRS'
   'Standard_GZRS'
@@ -60,7 +60,7 @@ param exportTables array = [
 @description('Public IP ranges permitted to reach the storage account, for administrative and retrieval access. Empty means no public IP is allowed and only the Azure Monitor platform path can write.')
 param allowedIpRanges array = []
 
-@description('Whether account key authorisation is permitted. Leaving this false forces every read through Entra ID, which is what makes the reader identity appear in the access logs. Confirm export still flows in a test environment before relying on it in production.')
+@description('Whether account key authorisation is permitted. Leaving this false forces every read through Entra ID, so the access logs record who read what. Confirm export still flows in a test environment before relying on it in production.')
 param allowSharedKeyAccess bool = false
 
 @description('Name of the export rule created on the workspace.')

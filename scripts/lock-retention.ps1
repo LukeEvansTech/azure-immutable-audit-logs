@@ -12,7 +12,7 @@
     until every blob's retention has expired, which for the six-year default
     means six years after the last write to each blob.
 
-    This is deliberately a separate script rather than a deployment flag.
+    This is a separate script rather than a deployment flag.
     Locking is a governance decision about a specific set of records, taken once
     the pipeline has been seen to work, not a property of a template.
 
@@ -27,7 +27,7 @@
 
 .PARAMETER Force
     Skip the confirmation prompt. For automation that has already made this
-    decision deliberately.
+    decision.
 
 .EXAMPLE
     ./scripts/lock-retention.ps1 -ResourceGroup rg-auditlogs-prod -StorageAccount auditlogsabc123

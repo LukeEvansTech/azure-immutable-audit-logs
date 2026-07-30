@@ -51,7 +51,7 @@ The details that turn "we copy logs to a bucket" into something that stands up t
 - **Reads are attributable.** Shared key access is off by default, so every read goes through Entra ID and lands in the blob access log with the reader's identity on it. With account keys enabled, a read is recorded as an anonymous shared-key request, and you lose the ability to say who looked at what.
 - **The access log can itself be retained.** Blob read, write and delete logging flows back into the workspace as `StorageBlobLogs`, which can be added to the export list on a later run - putting the record of who read the archive under the same protection as the archive.
 - **Telemetry sampling is disabled in the app.** It is on by default in the SDK. Sampling is the right trade-off for performance monitoring and the wrong one for an audit trail: it discards a proportion of events, so the archive silently stops being a complete account of what happened.
-- **Locking is a separate, deliberate step.** Policies deploy unlocked, which still enforces retention but leaves an administrator able to remove it. Locking is irreversible and gets its own script and its own confirmation.
+- **Locking is a step you have to take yourself.** Policies deploy unlocked, which still enforces retention but leaves an administrator able to remove it. Locking is irreversible and gets its own script and its own confirmation.
 
 ## Cost
 
@@ -64,4 +64,4 @@ The pipeline itself is cheap; the two things that cost money are storage and wor
 
 ## Getting started
 
-[Deployment](deployment.md) has the prerequisites and the commands. [How it works](how-it-works.md) explains the pipeline and the decisions behind it. [Retrieving records](retrieval.md) covers getting data back out in a way that stands up to scrutiny, and [Troubleshooting](troubleshooting.md) collects the failures worth knowing about in advance.
+[Deployment](deployment.md) has the prerequisites and the commands. [How it works](how-it-works.md) explains the pipeline and the decisions behind it. [Retrieving records](retrieval.md) covers getting data back out in a way that stands up to scrutiny, and [Troubleshooting](troubleshooting.md) collects the failures you are most likely to hit.

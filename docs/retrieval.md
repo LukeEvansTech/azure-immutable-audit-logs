@@ -21,7 +21,7 @@ Two places hold the same records, and which one you use is decided by how old th
 
 **Fix the time range in UTC.** Everything stored is UTC. The blob path is UTC. A request phrased in local time during British Summer Time is an hour out, which is exactly the kind of error that surfaces only when someone notices a gap. Convert once, write it down, and use the converted values throughout.
 
-**Grant access deliberately, and time-box it.** Retrieval needs a data-plane role, which routine platform administration does not include:
+**Grant access as a decision, not a default, and time-box it.** Retrieval needs a data-plane role, which routine platform administration does not include:
 
 ```bash
 az role assignment create \
@@ -94,7 +94,7 @@ WorkspaceResourceId=<lowercased workspace resource id>/y=2026/m=07/d=30/h=16/m=2
 
     - **`m=` appears twice.** After `y=` it is the month; after `h=` it is the minute.
     - **The filename spelling is contested.** `PT5M.json` and `PT05M.json` both circulate. Every blob written by the deployment behind this documentation was `PT5M.json`. Do not hardcode either - glob the folder.
-    - **Busy windows overflow** into numbered siblings in the same folder. Enumerate it rather than fetching one known filename, or you will silently drop the busiest five minutes of the day.
+    - **Busy windows overflow** into numbered siblings in the same folder. Enumerate it rather than fetching one known filename, or you drop the busiest five minutes of the day and never find out.
 
 Download a day:
 
@@ -111,7 +111,7 @@ az storage blob download-batch \
 
 !!! warning "The portal prefers the account key"
 
-    Browsing containers in **Storage browser**, the portal silently authorises with the account key whenever your identity is able to retrieve one. Check the authentication method shown at the top of the container view and switch it to Entra ID before downloading anything. A key-authorised read appears in the access log with no user attached.
+    Browsing containers in **Storage browser**, the portal authorises with the account key whenever your identity is able to retrieve one, without telling you. Check the authentication method shown at the top of the container view and switch it to Entra ID before downloading anything. A key-authorised read appears in the access log with no user attached.
 
 ### Merging
 
@@ -177,7 +177,7 @@ az role assignment list \
 
 ## A note on governance
 
-This page is deliberately only the technical half. Who may request an extract, who authorises it, what is recorded about the request, how the result is transmitted and how long the copy is kept are organisational questions, and the right answers differ by sector and jurisdiction.
+This page covers only the technical half. Who may request an extract, who authorises it, what is recorded about the request, how the result is transmitted and how long the copy is kept are organisational questions, and the right answers differ by sector and jurisdiction.
 
 Worth settling before the first real request, not during it:
 

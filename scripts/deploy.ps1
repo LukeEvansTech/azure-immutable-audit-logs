@@ -8,7 +8,7 @@
     PowerShell twin of deploy.sh, with the same behaviour and the same output.
 
     Retention policies are created unlocked. Locking them is a separate,
-    deliberate and irreversible step - see scripts/lock-retention.ps1.
+    separate and irreversible step. See scripts/lock-retention.ps1.
 
 .PARAMETER ResourceGroup
     Resource group to deploy into. Created if absent.
