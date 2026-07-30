@@ -115,17 +115,16 @@ This is why the demo should never be locked.
 
 ### If the policy is unlocked
 
-`az group delete` still fails, with a message about the account being protected by an immutability policy. This surprises people, because the documentation's headline is that unlocked policies do not provide delete protection.
+Teardown works, and needs no special handling. This is worth stating because the opposite is a reasonable assumption: if a blob cannot be deleted, surely the account holding it cannot either.
 
-That statement is about **expired** policies. The full rule:
+It can. The protection is scoped to the data, not the container of it. Checked against a live deployment with an active, unexpired policy and blobs present:
 
-| Policy state | Storage account deletion |
-| --- | --- |
-| Active (retention period still running), locked **or unlocked** | Fails if any container holds at least one blob |
-| Expired, unlocked | Allowed |
-| Expired, locked | Fails |
+| Operation | Unlocked | Locked |
+| --- | --- | --- |
+| Delete a blob | Rejected, `BlobImmutableDueToPolicy` | Rejected |
+| Delete the storage account | **Succeeds** | Fails until retention expires |
 
-So on the six-year default, an untouched *unlocked* policy blocks teardown for six years just as effectively as a locked one. The difference - and the entire reason to deploy unlocked - is that an unlocked policy can be **removed first**:
+So `az group delete`, and `teardown.sh`, work normally against unlocked policies. If you are dismantling something by hand and want the containers gone without the account, remove the policy first:
 
 ```bash
 ETAG=$(az storage container immutability-policy show \
@@ -137,7 +136,7 @@ az storage container immutability-policy delete \
   --container-name am-appevents --if-match "$ETAG"
 ```
 
-`teardown.sh` does this automatically for every unlocked container before deleting the resource group, so you should not need the commands above unless you are tearing down by hand.
+Container deletion, unlike account deletion, does fail while a container holds blobs under an active policy.
 
 ## Redeploying fails on the workspace name
 

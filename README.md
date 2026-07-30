@@ -94,7 +94,7 @@ See the [deployment guide](https://lukeevanstech.github.io/azure-immutable-audit
 
 Nothing locks anything automatically. Both templates deploy policies **unlocked**, and `lock-retention.sh` is the only thing that locks, interactively, after making you type `LOCK`.
 
-> **Unlocked does not mean disposable.** While the retention period is running, storage account deletion fails if any container holds a blob, whether or not the policy is locked. The difference is that an unlocked policy can be _removed first_ - `teardown.sh` does that for you before deleting the resource group. The often-quoted line that "unlocked policies don't provide delete protection" applies only once the retention period has **expired**.
+> **Unlocked still protects the data, but never traps you.** Under an active unlocked policy a blob delete is rejected with `BlobImmutableDueToPolicy`, exactly as under a locked one - so the demo genuinely demonstrates immutability. Deleting the storage account, however, succeeds and takes the blobs with it. That asymmetry is the entire practical difference: **unlocked means you can always get rid of it.** Locked removes that escape hatch for the full retention period.
 
 ## Repository layout
 

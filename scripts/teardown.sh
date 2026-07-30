@@ -116,45 +116,23 @@ EOF
         exit 1
     fi
 
-    # Unlocked policies still block deletion.
+    # Unlocked policies need no special handling here, which is worth stating
+    # because the opposite is a natural assumption.
     #
-    # It is tempting to assume "unlocked" means "harmless", because the
-    # documentation's headline is that unlocked policies do not provide delete
-    # protection. That applies to an *expired* policy. While the retention
-    # period is still running, storage account deletion fails if any container
-    # holds at least one blob, whether or not the policy is locked - so with the
-    # six-year default, an untouched unlocked policy blocks teardown for six
-    # years just as effectively as a locked one.
+    # An unlocked policy protects the DATA: deleting a blob under an active
+    # unlocked policy is rejected with BlobImmutableDueToPolicy, exactly as
+    # under a locked one. It does not protect the ACCOUNT: deleting the storage
+    # account itself succeeds, and takes the containers and blobs with it.
     #
-    # The difference, and the whole reason to deploy unlocked, is that an
-    # unlocked policy can simply be removed first. That is what this does.
+    # Verified against a live deployment rather than inferred - blob delete
+    # rejected, storage account delete accepted, on the same account with an
+    # active (unexpired) unlocked policy and blobs present.
+    #
+    # So `az group delete` below is sufficient, and that asymmetry is the whole
+    # practical difference between unlocked and locked: unlocked means you can
+    # always get rid of it by deleting the account.
     if [[ ${#UNLOCKED[@]} -gt 0 ]]; then
-        echo "    removing ${#UNLOCKED[@]} unlocked retention polic(ies) so the account can be deleted"
-        for container in "${UNLOCKED[@]}"; do
-            ETAG=$(az storage container immutability-policy show \
-                --account-name "$STORAGE_ACCOUNT" \
-                --resource-group "$RESOURCE_GROUP" \
-                --container-name "$container" \
-                --query 'etag' --output tsv 2>/dev/null || echo "")
-
-            if [[ -z "$ETAG" ]]; then
-                echo "      $container: policy vanished between listing and delete, skipping"
-                continue
-            fi
-
-            if az storage container immutability-policy delete \
-                --account-name "$STORAGE_ACCOUNT" \
-                --resource-group "$RESOURCE_GROUP" \
-                --container-name "$container" \
-                --if-match "$ETAG" \
-                --output none 2>/dev/null; then
-                echo "      $container: policy removed"
-            else
-                echo "      $container: could not remove policy - deletion may fail" >&2
-            fi
-        done
-    else
-        echo "    no retention policies to remove"
+        echo "    ${#UNLOCKED[@]} unlocked polic(ies) present - these do not block account deletion"
     fi
 fi
 

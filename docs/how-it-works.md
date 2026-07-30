@@ -100,11 +100,19 @@ For an archive whose whole value is that nothing in it can have been altered, "e
 
 **Unlocked and locked are genuinely different.** Both enforce retention against normal deletes. Only locked survives an administrator who wants the data gone - and only locked cannot be undone by you either. Deploy unlocked, confirm the pipeline works, then lock deliberately.
 
-!!! warning "Unlocked does not mean disposable"
+!!! note "Unlocked protects the data, not the account"
 
-    While the retention period is running, storage account deletion fails if any container holds at least one blob, **whether or not the policy is locked**. On the six-year default, an untouched unlocked policy blocks teardown for six years exactly as a locked one would.
+    The two states differ in a way that is easy to get backwards, so it is worth stating precisely. Both were checked against a live deployment with an active, unexpired policy and blobs present:
 
-    The difference is that an unlocked policy can be *removed first*, after which deletion proceeds normally. `scripts/teardown.sh` does that automatically. The commonly quoted line that "unlocked policies don't provide delete protection" is true only of policies whose retention period has already **expired**.
+    | Operation | Unlocked | Locked |
+    | --- | --- | --- |
+    | Delete a blob | Rejected, `BlobImmutableDueToPolicy` | Rejected |
+    | Overwrite a blob | Rejected | Rejected |
+    | Delete the storage account | **Succeeds** | Fails until retention expires |
+
+    So an unlocked policy is a real immutability guarantee for the data while the account exists - the demo is not a pretence. What it does not do is trap you: you can always delete the account and take the archive with it.
+
+    Locking removes that escape hatch. That is the point of locking, and the reason it is irreversible.
 
 !!! danger "Locking cannot be reversed"
 
