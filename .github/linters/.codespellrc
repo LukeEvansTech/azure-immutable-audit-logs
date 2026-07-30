@@ -1,0 +1,5 @@
+[codespell]
+# Preserve super-linter's default skips, plus the two directories that hold
+# generated or third-party content rather than prose.
+skip = */package-lock.json,*/go.mod,*/go.sum,*.log,.git,./site,./.venv,*/bin,*/obj
+check-hidden =

@@ -1,0 +1,30 @@
+# .NET build output
+bin/
+obj/
+*.user
+
+# Your deployment values. Copy the .example.bicepparam files and edit the
+# copies; they hold subscription-specific resource IDs and IP ranges.
+infra/*.bicepparam
+!infra/*.example.bicepparam
+
+# Python / docs tooling
+.venv/
+__pycache__/
+*.pyc
+
+# Zensical site build output
+site/
+.zensical/
+
+# Local env
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,7 @@
+# Zensical/pymdownx markdown that Prettier breaks: it de-indents the 4-space
+# admonition (!!! note) bodies into plain paragraphs, which silently turns a
+# rendered callout into stray text.
+docs/how-it-works.md
+docs/deployment.md
+docs/retrieval.md
+docs/troubleshooting.md

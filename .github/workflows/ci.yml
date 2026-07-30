@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bicep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Bicep
+        run: az bicep install
+
+      - name: Build templates
+        run: |
+          set -euo pipefail
+          for template in infra/main.bicep infra/retention-only.bicep; do
+            echo "::group::$template"
+            az bicep build --file "$template" --stdout > /dev/null
+            echo "::endgroup::"
+          done
+
+      - name: Build parameter files
+        run: |
+          set -euo pipefail
+          for params in infra/*.example.bicepparam; do
+            echo "::group::$params"
+            az bicep build-params --file "$params" --stdout > /dev/null
+            echo "::endgroup::"
+          done
+
+      - name: Check for Bicep warnings
+        run: |
+          set -euo pipefail
+          # az bicep build exits 0 on warnings, so the build steps above would
+          # pass a template that has them. Fail the job instead.
+          output=$(az bicep build --file infra/main.bicep --stdout 2>&1 >/dev/null)
+          output+=$(az bicep build --file infra/retention-only.bicep --stdout 2>&1 >/dev/null)
+          if grep -qiE 'warning|error' <<<"$output"; then
+            echo "$output"
+            exit 1
+          fi
+          echo "No Bicep warnings."
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: "10.0.x"
+
+      # The project sets TreatWarningsAsErrors, so this is the static gate for
+      # the application code.
+      - run: dotnet build app/AuditLogDemo.csproj --configuration Release --nologo
+
+      # Proves the artefact the deploy script actually ships can be produced.
+      - run: dotnet publish app/AuditLogDemo.csproj --configuration Release --output /tmp/publish --nologo
+
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: ShellCheck
+        run: shellcheck --severity=style scripts/*.sh
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r docs-requirements.txt
+
+      # Catches broken internal links and bad nav entries before they reach the
+      # published site.
+      - run: zensical build
