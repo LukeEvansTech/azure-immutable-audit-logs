@@ -76,7 +76,7 @@ function Get-Policy {
 Write-Output ''
 Write-Output 'About to LOCK retention on:'
 foreach ($name in $Container) {
-    $policy = Get-Policy $name
+    $policy = Get-Policy -Name $name
     if ($null -eq $policy) {
         Write-Output "  $name - no policy, will be SKIPPED"
     } elseif ($policy.state -eq 'Locked') {
@@ -105,7 +105,7 @@ if (-not $Force) {
 }
 
 foreach ($name in $Container) {
-    $policy = Get-Policy $name
+    $policy = Get-Policy -Name $name
 
     if ($null -eq $policy -or -not $policy.PSObject.Properties['etag'] -or -not $policy.etag) {
         Write-Output "  skipped $name (no policy)"

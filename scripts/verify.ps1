@@ -84,19 +84,19 @@ function Get-BoolProperty {
     return [bool] $value.Value
 }
 
-if (-not (Get-BoolProperty $account 'allowSharedKeyAccess' $true)) {
+if (-not (Get-BoolProperty -Object $account -Name 'allowSharedKeyAccess' -Default $true)) {
     Write-Ok 'shared key access disabled, so every read is attributable to an identity'
 } else {
     Write-Warn 'shared key access is enabled - reads authorised with the account key appear in the access log as anonymous, with no user attached'
 }
 
-if (Get-BoolProperty $account 'enableHttpsTrafficOnly' $false) {
+if (Get-BoolProperty -Object $account -Name 'enableHttpsTrafficOnly' -Default $false) {
     Write-Ok 'HTTPS-only enforced'
 } else {
     Write-Bad 'HTTPS-only is not enforced'
 }
 
-if (-not (Get-BoolProperty $account 'allowBlobPublicAccess' $true)) {
+if (-not (Get-BoolProperty -Object $account -Name 'allowBlobPublicAccess' -Default $true)) {
     Write-Ok 'anonymous blob access disabled'
 } else {
     Write-Bad 'anonymous blob access is permitted'

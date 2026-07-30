@@ -73,15 +73,15 @@ function Invoke-Az {
 }
 
 # jq is not needed here - unlike the shell twin, PowerShell parses JSON natively.
-Assert-Command az
+Assert-Command -Name az
 
 if (-not $SkipApp) {
-    Assert-Command dotnet 'Use -SkipApp to deploy infrastructure only.'
+    Assert-Command -Name dotnet -Hint 'Use -SkipApp to deploy infrastructure only.'
 }
 
 if ($Subscription) {
     Write-Output "==> Selecting subscription $Subscription"
-    Invoke-Az account set --subscription $Subscription | Out-Null
+    Invoke-Az @('account', 'set', '--subscription', $Subscription) | Out-Null
 }
 
 # Default to the operator's own parameters file when they have made one, so that
@@ -92,7 +92,7 @@ if (-not $ParametersFile) {
 }
 
 Write-Output "==> Ensuring resource group $ResourceGroup exists in $Location"
-Invoke-Az group create --name $ResourceGroup --location $Location --output none | Out-Null
+Invoke-Az @('group', 'create', '--name', $ResourceGroup, '--location', $Location, '--output', 'none') | Out-Null
 
 Write-Output '==> Deploying infrastructure'
 $deployName = "immutable-audit-logs-$([DateTime]::UtcNow.ToString('yyyyMMddHHmmss'))"
@@ -138,12 +138,14 @@ if (-not $SkipApp) {
 
         Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath -Force
 
-        Invoke-Az webapp deploy `
-            --resource-group $ResourceGroup `
-            --name $appServiceName `
-            --src-path $zipPath `
-            --type zip `
-            --output none | Out-Null
+        Invoke-Az @(
+            'webapp', 'deploy',
+            '--resource-group', $ResourceGroup,
+            '--name', $appServiceName,
+            '--src-path', $zipPath,
+            '--type', 'zip',
+            '--output', 'none'
+        ) | Out-Null
     } finally {
         Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     }
@@ -152,15 +154,16 @@ if (-not $SkipApp) {
 
 if ($EnableAuth) {
     Write-Output '==> Enabling Entra ID sign-in'
-    $tenantId = (Invoke-Az account show --query tenantId --output tsv).Trim()
-    $subscriptionId = (Invoke-Az account show --query id --output tsv).Trim()
+    $tenantId = (Invoke-Az @('account', 'show', '--query', 'tenantId', '--output', 'tsv')).Trim()
+    $subscriptionId = (Invoke-Az @('account', 'show', '--query', 'id', '--output', 'tsv')).Trim()
 
     # App Services are created with v1 auth config, which rejects every v2
     # command. Upgrading is a no-op once it has been done.
     $authVersion = (& az webapp auth-classic show --name $appServiceName --resource-group $ResourceGroup --query configVersion --output tsv 2>$null)
     if ($authVersion -eq 'v1') {
         Write-Output '    upgrading auth config v1 -> v2'
-        Invoke-Az webapp auth config-version upgrade --name $appServiceName --resource-group $ResourceGroup --output none | Out-Null
+        Invoke-Az @('webapp', 'auth', 'config-version', 'upgrade',
+            '--name', $appServiceName, '--resource-group', $ResourceGroup, '--output', 'none') | Out-Null
     }
 
     $existingClientId = (& az webapp auth show --name $appServiceName --resource-group $ResourceGroup `
@@ -171,13 +174,18 @@ if ($EnableAuth) {
         Write-Output '    creating app registration'
         # enable-id-token-issuance is required: Easy Auth uses the hybrid flow
         # (response_type=code+id_token) and the sign-in fails without it.
-        $clientId = (Invoke-Az ad app create `
-                --display-name $appServiceName `
-                --web-redirect-uris "$appUrl/.auth/login/aad/callback" `
-                --sign-in-audience AzureADMyOrg `
-                --enable-id-token-issuance true `
-                --query appId --output tsv).Trim()
-        $clientSecret = (Invoke-Az ad app credential reset --id $clientId --query password --output tsv).Trim()
+        $clientId = (Invoke-Az @(
+                'ad', 'app', 'create',
+                '--display-name', $appServiceName,
+                '--web-redirect-uris', "$appUrl/.auth/login/aad/callback",
+                '--sign-in-audience', 'AzureADMyOrg',
+                '--enable-id-token-issuance', 'true',
+                '--query', 'appId', '--output', 'tsv'
+            )).Trim()
+        $clientSecret = (Invoke-Az @(
+                'ad', 'app', 'credential', 'reset',
+                '--id', $clientId, '--query', 'password', '--output', 'tsv'
+            )).Trim()
         Write-Output "    app registration created ($clientId)"
     } else {
         $clientId = $existingClientId.Trim()
@@ -202,24 +210,28 @@ if ($EnableAuth) {
             } | ConvertTo-Json -Depth 4 -Compress
             "[$setting]" | Set-Content -Path $settingsFile -Encoding utf8
 
-            Invoke-Az webapp config appsettings set `
-                --name $appServiceName `
-                --resource-group $ResourceGroup `
-                --settings "@$settingsFile" `
-                --output none | Out-Null
+            Invoke-Az @(
+                'webapp', 'config', 'appsettings', 'set',
+                '--name', $appServiceName,
+                '--resource-group', $ResourceGroup,
+                '--settings', "@$settingsFile",
+                '--output', 'none'
+            ) | Out-Null
         } finally {
             Remove-Item -Force $settingsFile -ErrorAction SilentlyContinue
         }
     }
 
-    Invoke-Az webapp auth microsoft update `
-        --name $appServiceName `
-        --resource-group $ResourceGroup `
-        --client-id $clientId `
-        --client-secret-setting-name MICROSOFT_PROVIDER_AUTHENTICATION_SECRET `
-        --issuer "https://login.microsoftonline.com/$tenantId/v2.0" `
-        --yes `
-        --output none | Out-Null
+    Invoke-Az @(
+        'webapp', 'auth', 'microsoft', 'update',
+        '--name', $appServiceName,
+        '--resource-group', $ResourceGroup,
+        '--client-id', $clientId,
+        '--client-secret-setting-name', 'MICROSOFT_PROVIDER_AUTHENTICATION_SECRET',
+        '--issuer', "https://login.microsoftonline.com/$tenantId/v2.0",
+        '--yes',
+        '--output', 'none'
+    ) | Out-Null
 
     # redirectToProvider has no CLI equivalent. Without it an unauthenticated
     # browser lands on a provider-selection page rather than the sign-in page.
@@ -248,10 +260,12 @@ if ($EnableAuth) {
     $bodyFile = [System.IO.Path]::GetTempFileName()
     try {
         Set-Content -Path $bodyFile -Value $authBody -Encoding utf8
-        Invoke-Az rest --method PUT `
-            --url "https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.Web/sites/$appServiceName/config/authsettingsV2?api-version=2022-09-01" `
-            --body "@$bodyFile" `
-            --output none | Out-Null
+        Invoke-Az @(
+            'rest', '--method', 'PUT',
+            '--url', "https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.Web/sites/$appServiceName/config/authsettingsV2?api-version=2022-09-01",
+            '--body', "@$bodyFile",
+            '--output', 'none'
+        ) | Out-Null
     } finally {
         Remove-Item -Force $bodyFile -ErrorAction SilentlyContinue
     }
