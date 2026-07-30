@@ -86,10 +86,12 @@ warn() {
 
 # macOS has no timeout(1). Run a command in the background and kill it if it
 # outlives the deadline, so a hung Azure call cannot wedge the whole script.
+#
+# Set TIMEOUT_LOG to capture the command's output; otherwise it is discarded.
 run_with_timeout() {
     local seconds="$1"
     shift
-    "$@" >/dev/null 2>&1 &
+    "$@" >"${TIMEOUT_LOG:-/dev/null}" 2>&1 &
     local pid=$!
     local waited=0
     while kill -0 "$pid" 2>/dev/null; do
@@ -288,20 +290,36 @@ if [[ "$TEST_IMMUTABILITY" == true ]]; then
         if [[ -z "$TARGET_BLOB" || "$TARGET_BLOB" == "None" ]]; then
             warn "no blob in $TARGET_CONTAINER to test against yet"
         else
+            # Capture the message, not just the exit status.
+            #
+            # "The delete failed, therefore immutability works" is not sound: a
+            # caller with read-only access gets a permissions failure, which
+            # looks identical from the exit code and proves nothing at all. Only
+            # BlobImmutableDueToPolicy demonstrates the policy did the work.
+            DELETE_OUT=$(mktemp)
             set +e
-            run_with_timeout 20 az storage blob delete \
+            TIMEOUT_LOG="$DELETE_OUT" run_with_timeout 20 \
+                az storage blob delete \
                 --account-name "$STORAGE_ACCOUNT" \
                 --container-name "$TARGET_CONTAINER" \
                 --name "$TARGET_BLOB" \
                 --auth-mode login
             RESULT=$?
             set -e
+            DELETE_MSG=$(cat "$DELETE_OUT" 2>/dev/null || true)
+            rm -f "$DELETE_OUT"
 
-            case "$RESULT" in
-            0) bad "a blob in $TARGET_CONTAINER was DELETED - retention is not being enforced" ;;
-            124) ok "delete of $TARGET_BLOB did not succeed (timed out against the policy)" ;;
-            *) ok "delete of $TARGET_BLOB was rejected, as it should be" ;;
-            esac
+            if grep -qiE 'BlobImmutableDueToPolicy|immutable due to a policy' <<<"$DELETE_MSG"; then
+                ok "delete of $TARGET_BLOB was rejected by the retention policy, as it should be"
+            elif grep -qiE 'do not have the required permissions|AuthorizationPermissionMismatch' <<<"$DELETE_MSG"; then
+                warn "delete of $TARGET_BLOB failed on permissions, not the policy - this proves nothing. Grant Storage Blob Data Contributor and retry for a real test."
+            elif [[ "$RESULT" -eq 124 ]]; then
+                warn "delete of $TARGET_BLOB timed out - inconclusive"
+            elif [[ "$RESULT" -eq 0 && -z "$DELETE_MSG" ]]; then
+                bad "a blob in $TARGET_CONTAINER was DELETED - retention is not being enforced"
+            else
+                warn "delete of $TARGET_BLOB did not succeed, but for an unrecognised reason: ${DELETE_MSG:0:200}"
+            fi
         fi
     fi
 fi

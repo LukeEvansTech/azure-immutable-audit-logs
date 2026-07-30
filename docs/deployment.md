@@ -3,8 +3,20 @@
 ## Prerequisites
 
 - **Azure CLI**, signed in (`az login`). Bicep support is built-in; `az bicep version` confirms it.
-- **jq** and **`zip`**, used by the scripts.
+- **jq** and **`zip`**, used by the shell scripts. Neither is needed for the PowerShell twins.
 - **.NET 10 SDK**, only if you are publishing the demo app. Not needed for `--skip-app` or for the production template.
+
+Every script has a PowerShell twin with identical behaviour, for Windows or anywhere else with PowerShell. Windows PowerShell 5.1 and PowerShell 7+ both work. The shell scripts take flags, the PowerShell ones take named parameters:
+
+| Shell | PowerShell |
+| --- | --- |
+| `./scripts/deploy.sh --resource-group <rg>` | `./scripts/deploy.ps1 -ResourceGroup <rg>` |
+| `--location <region>` | `-Location <region>` |
+| `--enable-auth` | `-EnableAuth` |
+| `--skip-app` | `-SkipApp` |
+| `--workspace-guid <guid>` | `-WorkspaceGuid <guid>` |
+| `--purge-workspace` | `-PurgeWorkspace` |
+| `--yes` | `-Force` |
 
 If you use [mise](https://mise.jdx.dev), `mise install` picks up the pinned versions from `.mise.toml`.
 

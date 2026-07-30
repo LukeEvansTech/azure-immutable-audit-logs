@@ -49,6 +49,14 @@ When you are finished:
 
 > **Export takes around 30 minutes to provision** before it writes anything. Events generated during that window may never reach storage. This is the single most common "it is broken" report, and it is not broken.
 
+On Windows, or anywhere with PowerShell, every script has a PowerShell twin with the same behaviour - `deploy.ps1`, `verify.ps1`, `lock-retention.ps1`, `teardown.ps1`. Both Windows PowerShell 5.1 and PowerShell 7+ work. They take named parameters rather than flags:
+
+```powershell
+./scripts/deploy.ps1 -ResourceGroup rg-auditlogs-demo -Location uksouth
+./scripts/verify.ps1 -ResourceGroup rg-auditlogs-demo -StorageAccount <name> -WorkspaceGuid <guid>
+./scripts/teardown.ps1 -ResourceGroup rg-auditlogs-demo -PurgeWorkspace
+```
+
 ## Production
 
 Two entry points, sharing the same retention module.
@@ -102,7 +110,7 @@ Nothing locks anything automatically. Both templates deploy policies **unlocked*
 | ---------- | --------------------------------------------------------------------------- |
 | `infra/`   | `main.bicep`, `retention-only.bicep`, shared `modules/`, example parameters |
 | `app/`     | .NET 10 demo app and its test console UI                                    |
-| `scripts/` | `deploy.sh`, `verify.sh`, `lock-retention.sh`, `teardown.sh`                |
+| `scripts/` | `deploy`, `verify`, `lock-retention`, `teardown` - each as `.sh` and `.ps1` |
 | `docs/`    | Documentation site source (Zensical)                                        |
 
 ## Verification
