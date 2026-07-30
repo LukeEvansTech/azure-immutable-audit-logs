@@ -87,14 +87,14 @@ If you are near the ceiling, narrow the range and run several passes, or use a [
 Records live under a deeply nested, UTC-based path:
 
 ```text
-WorkspaceResourceId=<lowercased workspace resource id>/y=2026/m=07/d=30/h=14/m=25/PT05M.json
+WorkspaceResourceId=<lowercased workspace resource id>/y=2026/m=07/d=30/h=16/m=25/PT5M.json
 ```
 
 !!! danger "Three ways this path bites"
 
     - **`m=` appears twice.** After `y=` it is the month; after `h=` it is the minute.
-    - **The file is `PT05M.json`**, zero-padded, not `PT5M.json`.
-    - **Busy windows overflow** into `PT05M_2.json`, `PT05M_3.json` and so on, sitting alongside. Enumerate the folder rather than fetching one known filename, or you will silently drop the busiest five minutes of the day.
+    - **The filename spelling is contested.** `PT5M.json` and `PT05M.json` both circulate. Every blob written by the deployment behind this documentation was `PT5M.json`. Do not hard-code either - glob the folder.
+    - **Busy windows overflow** into numbered siblings in the same folder. Enumerate it rather than fetching one known filename, or you will silently drop the busiest five minutes of the day.
 
 Download a day:
 

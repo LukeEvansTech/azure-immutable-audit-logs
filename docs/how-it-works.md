@@ -16,7 +16,7 @@ sequenceDiagram
     Note over LA: queryable within 2-5 minutes
     LA->>DE: continuous export
     Note over DE: ~30 min to provision,<br/>then batched every 5 minutes
-    DE->>Blob: append to PT05M.json
+    DE->>Blob: append to PT5M.json
     Note over Blob: retention policy already attached<br/>before the first write
 ```
 
@@ -67,14 +67,20 @@ Data Export is a workspace-level rule that continuously copies rows from named t
 
 ```text
 WorkspaceResourceId=/subscriptions/<sub>/resourcegroups/<rg>/providers/microsoft.operationalinsights/workspaces/<ws>/
-  y=2026/m=07/d=30/h=14/m=25/PT05M.json
+  y=2026/m=07/d=30/h=16/m=25/PT5M.json
 ```
 
 Three things about that path catch people out:
 
 1. **`m=` appears twice and means different things.** The segment after `y=` is the month. The segment after `h=` is the minute. A parser that assumes the first `m=` it finds is the month will be right two thirds of the time and silently wrong otherwise.
-2. **The file is `PT05M.json`, zero-padded.** Not `PT5M.json`.
-3. **Overflow files sit alongside.** Where a five-minute window exceeded 50,000 appends, the surplus lands as `PT05M_2.json`, `PT05M_3.json` and so on. Enumerate the folder; do not assume one file per window.
+2. **The workspace resource ID in the path is lowercased**, including the `resourcegroups` and `microsoft.operationalinsights` segments. A prefix match built from the resource ID as the portal displays it will not match.
+3. **Overflow files sit alongside.** Where a five-minute window exceeds 50,000 appends, the surplus lands as a numbered sibling in the same folder. Enumerate the folder; do not assume one file per window.
+
+!!! note "The filename is `PT5M.json`, not `PT05M.json`"
+
+    Both spellings circulate, and the zero-padded one appears in places that look authoritative. Every blob written by the deployment behind this documentation was `PT5M.json`, in both containers.
+
+    Rather than trust either spelling, glob the folder. `--pattern "*/y=2026/m=07/d=30/*"` is correct under both, and survives the overflow files too.
 
 The contents are newline-delimited JSON with no enclosing array - one record per line. `jq -s` or a streaming reader, not a plain `json.load`.
 

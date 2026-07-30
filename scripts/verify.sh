@@ -118,26 +118,52 @@ ACCOUNT_JSON=$(az storage account show \
 
 ok "storage account exists ($(jq -r '.sku.name' <<<"$ACCOUNT_JSON") in $(jq -r '.location' <<<"$ACCOUNT_JSON"))"
 
-# allowSharedKeyAccess is null when it has never been set, which behaves as true.
-SHARED_KEY=$(jq -r '.allowSharedKeyAccess // true' <<<"$ACCOUNT_JSON")
+# Read a boolean property, substituting a default only when it is genuinely
+# absent.
+#
+# Do NOT use jq's `//` operator here. It treats `false` as empty just like
+# `null`, so `.allowSharedKeyAccess // true` yields "true" for an account where
+# the value is explicitly false - reporting a correctly hardened account as
+# insecure. That bug shipped once already.
+bool_prop() {
+    local key="$1" default="$2"
+    jq -r --arg k "$key" --arg d "$default" \
+        'if (.[$k] == null) then $d else (.[$k] | tostring) end' <<<"$ACCOUNT_JSON"
+}
+
+SHARED_KEY=$(bool_prop allowSharedKeyAccess true)
 if [[ "$SHARED_KEY" == "false" ]]; then
     ok "shared key access disabled, so every read is attributable to an identity"
 else
     warn "shared key access is enabled - reads authorised with the account key appear in the access log as anonymous, with no user attached"
 fi
 
-HTTPS_ONLY=$(jq -r '.enableHttpsTrafficOnly // false' <<<"$ACCOUNT_JSON")
+HTTPS_ONLY=$(bool_prop enableHttpsTrafficOnly false)
 if [[ "$HTTPS_ONLY" == "true" ]]; then
     ok "HTTPS-only enforced"
 else
     bad "HTTPS-only is not enforced"
 fi
 
-PUBLIC_BLOB=$(jq -r '.allowBlobPublicAccess // true' <<<"$ACCOUNT_JSON")
+PUBLIC_BLOB=$(bool_prop allowBlobPublicAccess true)
 if [[ "$PUBLIC_BLOB" == "false" ]]; then
     ok "anonymous blob access disabled"
 else
     bad "anonymous blob access is permitted"
+fi
+
+# The firewall is the usual reason the data-plane checks below fail, and it
+# looks exactly like a missing role assignment if you do not check for it.
+FIREWALL_DEFAULT=$(jq -r '.networkRuleSet.defaultAction // "Allow"' <<<"$ACCOUNT_JSON")
+IP_RULE_COUNT=$(jq -r '.networkRuleSet.ipRules | length' <<<"$ACCOUNT_JSON")
+if [[ "$FIREWALL_DEFAULT" == "Deny" ]]; then
+    if [[ "$IP_RULE_COUNT" -eq 0 ]]; then
+        warn "firewall denies by default with no IP rules - Azure Monitor can still write via the trusted-services path, but no client can read. Add your address to allowedIpRanges to inspect the archive."
+    else
+        ok "firewall denies by default with $IP_RULE_COUNT allowed IP range(s)"
+    fi
+else
+    warn "firewall default action is $FIREWALL_DEFAULT - the account is reachable from any network"
 fi
 
 echo
@@ -150,7 +176,11 @@ CONTAINERS=$(az storage container list \
     --query '[].name' --output tsv 2>/dev/null || true)
 
 if [[ -z "$CONTAINERS" ]]; then
-    bad "no containers found, or the caller cannot list them (needs Storage Blob Data Reader or higher)"
+    if [[ "$FIREWALL_DEFAULT" == "Deny" && "$IP_RULE_COUNT" -eq 0 ]]; then
+        bad "cannot list containers: the storage firewall denies by default and has no IP rules, so this machine is blocked. Add your address to allowedIpRanges and redeploy. This is not a permissions problem."
+    else
+        bad "no containers found, or the caller cannot list them (needs Storage Blob Data Reader or higher on the account, which Contributor does not include)"
+    fi
 else
     while IFS= read -r container; do
         [[ -n "$container" ]] || continue

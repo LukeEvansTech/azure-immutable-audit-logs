@@ -193,8 +193,9 @@ jq -s '.' < PT05M.json          # slurp into an array
 And the path traps, again, because they are worth repeating:
 
 - `m=` after `y=` is the **month**; `m=` after `h=` is the **minute**
-- the file is `PT05M.json`, zero-padded
-- busy windows overflow into `PT05M_2.json`, `PT05M_3.json` - enumerate the folder
+- the workspace resource ID inside the path is **lowercased**, so a prefix built from the portal's casing will not match
+- the filename spelling is contested - `PT5M.json` and `PT05M.json` both circulate, and the deployment behind this documentation produced `PT5M.json`. Glob the folder instead of hard-coding either
+- busy windows overflow into numbered siblings - enumerate the folder
 
 ## Rule and destination limits
 
