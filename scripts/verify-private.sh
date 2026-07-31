@@ -183,6 +183,9 @@ az container create \
     --subnet "$SUBNET_ID" \
     --assign-identity "$IDENTITY_ID" \
     --restart-policy Never \
+    `# --os-type is normally inferred, but not when --subnet is supplied: the` \
+    `# create then fails with InvalidOsType and a null container group name.` \
+    --os-type Linux \
     --cpu 1 --memory 1.5 \
     --command-line "/bin/sh -c 'echo $PROBE_B64 | base64 -d | /bin/sh'" \
     --output none
