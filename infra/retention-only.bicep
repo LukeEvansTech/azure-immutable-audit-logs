@@ -63,6 +63,29 @@ param allowedIpRanges array = []
 @description('Whether account key authorisation is permitted. Leaving this false forces every read through Entra ID, so the access logs record who read what. Confirm export still flows in a test environment before relying on it in production.')
 param allowSharedKeyAccess bool = false
 
+@description('Whether the account is reachable over its public endpoint. Disabled means the private endpoint is the only client route, so retrieval has to happen from the network. Data Export writes through the Azure Monitor platform and is not a client of the public endpoint either way.')
+@allowed([
+  'Disabled'
+  'Enabled'
+])
+param publicNetworkAccess string = 'Disabled'
+
+@description('Minimum TLS version accepted on requests to the account. TLS1_3 appears in the ARM enum but parts of the Microsoft SDK reference state it is not supported, so TLS1_2 is the default.')
+@allowed([
+  'TLS1_2'
+  'TLS1_3'
+])
+param minimumTlsVersion string = 'TLS1_2'
+
+@description('Resource ID of an existing subnet to place the blob private endpoint in. The subnet must have privateEndpointNetworkPolicies disabled. Empty creates no endpoint, which should only be paired with publicNetworkAccess set to Enabled.')
+param privateEndpointSubnetResourceId string = ''
+
+@description('Resource ID of an existing privatelink.blob private DNS zone, typically owned centrally and linked to the hub. Empty creates the endpoint without DNS registration, leaving it unreachable by name until the platform team registers it.')
+param privateDnsZoneResourceId string = ''
+
+@description('Name of the private endpoint resource.')
+param privateEndpointName string = 'pep-${baseName}-blob'
+
 @description('Name of the export rule created on the workspace.')
 param exportRuleName string = '${baseName}-export'
 
@@ -99,6 +122,11 @@ module wormStorage 'modules/worm-storage.bicep' = {
     diagnosticSettingName: '${baseName}-blob-diagnostics'
     allowedIpRanges: allowedIpRanges
     allowSharedKeyAccess: allowSharedKeyAccess
+    publicNetworkAccess: publicNetworkAccess
+    minimumTlsVersion: minimumTlsVersion
+    privateEndpointSubnetResourceId: privateEndpointSubnetResourceId
+    privateDnsZoneResourceId: privateDnsZoneResourceId
+    privateEndpointName: privateEndpointName
     tags: tags
   }
 }
@@ -132,6 +160,10 @@ output storageAccountLocation string = wormStorage.outputs.storageAccountLocatio
 output blobEndpoint string = wormStorage.outputs.blobEndpoint
 output containerNames array = wormStorage.outputs.containerNames
 output sharedKeyAccessAllowed bool = wormStorage.outputs.sharedKeyAccessAllowed
+output publicNetworkAccess string = wormStorage.outputs.publicNetworkAccess
+output minimumTlsVersion string = wormStorage.outputs.minimumTlsVersion
+output privateEndpointDeployed bool = wormStorage.outputs.privateEndpointDeployed
+output privateEndpointIpAddress string = wormStorage.outputs.privateEndpointIpAddress
 output exportRuleName string = dataExport.outputs.exportRuleName
 output exportedTables array = exportTables
 output retentionDays int = retentionDays

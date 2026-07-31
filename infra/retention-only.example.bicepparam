@@ -80,3 +80,33 @@ param workspaceResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000
 //   environment: 'production'
 //   dataClassification: 'audit-record'
 // }
+
+// --- Hardening -------------------------------------------------------------
+
+// Whether the account is reachable over its public endpoint.
+//
+// Disabled means retrieval has to happen from the network. Data Export writes
+// through the Azure Monitor platform and is not a client of the public
+// endpoint either way.
+// param publicNetworkAccess = 'Disabled'
+
+// Minimum TLS version. See the note in main.example.bicepparam about TLS1_3
+// being present in the enum but described as unsupported elsewhere.
+// param minimumTlsVersion = 'TLS1_2'
+
+// --- Private networking ----------------------------------------------------
+
+// Existing subnet for the blob private endpoint. This template does not create
+// a network: a landing zone owns its own address space, and a template that
+// invents one creates an island nothing can route to.
+//
+// The subnet must have privateEndpointNetworkPolicies disabled.
+// param privateEndpointSubnetResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-private-endpoints'
+
+// Existing privatelink.blob private DNS zone, usually owned centrally and
+// linked to the hub. Leaving this empty creates the endpoint without DNS, so it
+// has an address but no name resolves to it - which surfaces as a 403 rather
+// than as anything network-shaped.
+// param privateDnsZoneResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-network/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net'
+
+// param privateEndpointName = 'pep-auditlogs-blob'

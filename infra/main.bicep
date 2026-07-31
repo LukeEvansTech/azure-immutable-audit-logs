@@ -70,6 +70,39 @@ param allowedIpRanges array = []
 @description('Whether account key authorisation is permitted on the retention tier. Leaving this false forces every read through Entra ID, so the reader identity lands in the access logs. Retrieval evidence depends on it.')
 param allowSharedKeyAccess bool = false
 
+@description('Whether the retention tier is reachable over its public endpoint. Disabled means the private endpoint is the only route in, and that reading the archive requires being on the virtual network. Data Export writes through the Azure Monitor platform either way.')
+@allowed([
+  'Disabled'
+  'Enabled'
+])
+param storagePublicNetworkAccess string = 'Disabled'
+
+@description('Minimum TLS version accepted by the retention tier.')
+@allowed([
+  'TLS1_2'
+  'TLS1_3'
+])
+param storageMinimumTlsVersion string = 'TLS1_2'
+
+@description('Minimum TLS version accepted by the demo app.')
+@allowed([
+  '1.2'
+  '1.3'
+])
+param appMinimumTlsVersion string = '1.2'
+
+@description('Create a virtual network and a private endpoint for the retention tier. This template creates its own network so the demo is self-contained. Production should use retention-only.bicep, which attaches to a subnet the platform team already owns.')
+param deployPrivateEndpoint bool = true
+
+@description('Address space for the demo virtual network.')
+param vnetAddressPrefix string = '10.20.0.0/16'
+
+@description('Address prefix for the private endpoint subnet.')
+param privateEndpointSubnetPrefix string = '10.20.1.0/24'
+
+@description('Address prefix for the verifier subnet, delegated to Azure Container Instances. With the public endpoint disabled, checking the archive means running the check from inside the network.')
+param verifierSubnetPrefix string = '10.20.2.0/24'
+
 @description('Tags applied to every resource.')
 param tags object = {}
 
@@ -158,7 +191,7 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|10.0'
       ftpsState: 'Disabled'
-      minTlsVersion: '1.2'
+      minTlsVersion: appMinimumTlsVersion
       http20Enabled: true
       alwaysOn: true
       appSettings: [
@@ -211,6 +244,27 @@ resource appDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-previe
 // WORM retention tier
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Private networking
+//
+// Created here only because this template is the self-contained demo. A real
+// deployment attaches to a network the platform team owns; see
+// retention-only.bicep.
+// ---------------------------------------------------------------------------
+
+module network 'modules/network.bicep' = if (deployPrivateEndpoint) {
+  name: 'deploy-network'
+  params: {
+    vnetName: '${baseName}-vnet-${uniqueSuffix}'
+    location: location
+    addressPrefix: vnetAddressPrefix
+    privateEndpointSubnetPrefix: privateEndpointSubnetPrefix
+    verifierSubnetPrefix: verifierSubnetPrefix
+    createVerifierSubnet: true
+    tags: tags
+  }
+}
+
 module wormStorage 'modules/worm-storage.bicep' = {
   name: 'deploy-worm-storage'
   params: {
@@ -223,6 +277,11 @@ module wormStorage 'modules/worm-storage.bicep' = {
     diagnosticSettingName: '${baseName}-blob-diagnostics'
     allowedIpRanges: allowedIpRanges
     allowSharedKeyAccess: allowSharedKeyAccess
+    publicNetworkAccess: storagePublicNetworkAccess
+    minimumTlsVersion: storageMinimumTlsVersion
+    privateEndpointSubnetResourceId: deployPrivateEndpoint ? network!.outputs.privateEndpointSubnetResourceId : ''
+    privateDnsZoneResourceId: deployPrivateEndpoint ? network!.outputs.privateDnsZoneResourceId : ''
+    privateEndpointName: 'pep-${storageAccountName}-blob'
     tags: tags
   }
 }
@@ -277,6 +336,15 @@ output storageAccountResourceId string = wormStorage.outputs.storageAccountResou
 output blobEndpoint string = wormStorage.outputs.blobEndpoint
 output containerNames array = wormStorage.outputs.containerNames
 output sharedKeyAccessAllowed bool = wormStorage.outputs.sharedKeyAccessAllowed
+output storagePublicNetworkAccess string = wormStorage.outputs.publicNetworkAccess
+output storageMinimumTlsVersion string = wormStorage.outputs.minimumTlsVersion
+output privateEndpointDeployed bool = wormStorage.outputs.privateEndpointDeployed
+output privateEndpointIpAddress string = wormStorage.outputs.privateEndpointIpAddress
+
+@description('Subnet to run the verification container in. With the public endpoint disabled this is the only place a check can read the archive from.')
+output verifierSubnetResourceId string = deployPrivateEndpoint ? network!.outputs.verifierSubnetResourceId : ''
+
+output vnetName string = deployPrivateEndpoint ? network!.outputs.vnetName : ''
 
 output exportRuleName string = dataExport.outputs.exportRuleName
 output exportedTables array = exportTables

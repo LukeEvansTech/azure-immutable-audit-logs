@@ -48,6 +48,29 @@ param allowedIpRanges array = []
 @description('Whether account key authorisation is permitted. Leaving this false forces every read through Entra ID, so the access logs name the reader.')
 param allowSharedKeyAccess bool = false
 
+@description('Whether the account is reachable over its public endpoint at all. Disabled means the private endpoint is the only client route in; the Azure Monitor platform path that Data Export uses is separate and is not affected by this. Enabled still denies by default and admits only allowedIpRanges.')
+@allowed([
+  'Disabled'
+  'Enabled'
+])
+param publicNetworkAccess string = 'Disabled'
+
+@description('Minimum TLS version accepted on requests to the account. TLS1_3 appears in the ARM enum but parts of the Microsoft SDK reference state it is not supported, so TLS1_2 is the default until a deployment proves otherwise.')
+@allowed([
+  'TLS1_2'
+  'TLS1_3'
+])
+param minimumTlsVersion string = 'TLS1_2'
+
+@description('Resource ID of the subnet to place the blob private endpoint in. Empty creates no endpoint, which only makes sense when publicNetworkAccess is Enabled.')
+param privateEndpointSubnetResourceId string = ''
+
+@description('Resource ID of the privatelink blob private DNS zone. Empty registers no DNS, leaving the endpoint unreachable by name.')
+param privateDnsZoneResourceId string = ''
+
+@description('Name of the private endpoint resource.')
+param privateEndpointName string = 'pep-${storageAccountName}-blob'
+
 @description('Tags applied to the storage account.')
 param tags object = {}
 
@@ -67,16 +90,28 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
   properties: {
     accessTier: 'Hot'
-    minimumTlsVersion: 'TLS1_2'
+    minimumTlsVersion: minimumTlsVersion
     supportsHttpsTrafficOnly: true
+
+    // Not a parameter. Anonymous container or blob access has no legitimate use
+    // for an audit archive, and making it configurable invites someone to
+    // configure it.
     allowBlobPublicAccess: false
+
     allowSharedKeyAccess: allowSharedKeyAccess
     defaultToOAuthAuthentication: true
 
-    // Must stay Enabled. Setting this to Disabled blocks the trusted-services
-    // path as well as the public internet, which stops export writing at all.
-    // The firewall below is what restricts access, not this switch.
-    publicNetworkAccess: 'Enabled'
+    // Disabled means no client reaches the account except through the private
+    // endpoint.
+    //
+    // Data Export is unaffected either way: it writes through the Azure Monitor
+    // platform rather than as a network client of this account. Microsoft's own
+    // guidance for export is the firewall-plus-trusted-services shape, and
+    // whether Disabled also permits it is reported to work but explained as a
+    // precedence artefact rather than a guarantee. Treat a change here as
+    // something to observe in a test environment before relying on, and check
+    // blobs are still arriving afterwards.
+    publicNetworkAccess: publicNetworkAccess
 
     networkAcls: {
       defaultAction: 'Deny'
@@ -85,6 +120,9 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
       // written. There is no narrower form of this: a per-resource rule naming
       // the workspace is not supported for this resource type, and would grant
       // endpoint reachability rather than data access in any case.
+      //
+      // Retained even when publicNetworkAccess is Disabled, so that flipping
+      // back to Enabled does not silently drop the export path.
       bypass: 'AzureServices'
 
       ipRules: [
@@ -94,6 +132,25 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
         }
       ]
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Private endpoint
+//
+// Created after the containers so the account is fully shaped before anything
+// is routed to it. This is the retrieval path; export does not use it.
+// ---------------------------------------------------------------------------
+
+module privateEndpoint 'private-endpoint.bicep' = if (!empty(privateEndpointSubnetResourceId)) {
+  name: 'deploy-${privateEndpointName}'
+  params: {
+    privateEndpointName: privateEndpointName
+    location: location
+    subnetResourceId: privateEndpointSubnetResourceId
+    storageAccountResourceId: storageAccount.id
+    privateDnsZoneResourceId: privateDnsZoneResourceId
+    tags: tags
   }
 }
 
@@ -170,3 +227,12 @@ output blobEndpoint string = storageAccount.properties.primaryEndpoints.blob
 // whether reads will be attributable to a named identity or will fall back to a
 // shared key. Retrieval evidence depends on this being false.
 output sharedKeyAccessAllowed bool = allowSharedKeyAccess
+
+output publicNetworkAccess string = publicNetworkAccess
+output minimumTlsVersion string = minimumTlsVersion
+output privateEndpointDeployed bool = !empty(privateEndpointSubnetResourceId)
+
+@description('Private address the blob endpoint resolves to inside the network, or empty when no endpoint was created. Empty while an endpoint exists means DNS was not registered.')
+output privateEndpointIpAddress string = !empty(privateEndpointSubnetResourceId)
+  ? privateEndpoint!.outputs.privateIpAddress
+  : ''

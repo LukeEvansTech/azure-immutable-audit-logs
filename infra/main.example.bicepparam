@@ -73,3 +73,43 @@ using 'main.bicep'
 //   environment: 'demo'
 //   owner: 'platform-team'
 // }
+
+// --- Hardening -------------------------------------------------------------
+
+// Whether the retention tier is reachable over its public endpoint.
+//
+// Disabled is the default and means the private endpoint is the only client
+// route in. Data Export is unaffected: it writes through the Azure Monitor
+// platform rather than as a network client of the account.
+//
+// The practical cost is that you cannot read the archive from your own machine
+// any more. Use scripts/verify-private.sh, which runs the check from a
+// throwaway container inside the virtual network.
+// param storagePublicNetworkAccess = 'Disabled'
+
+// Minimum TLS version on the storage account.
+//
+// TLS1_3 is in the ARM enum, but parts of Microsoft's SDK reference state that
+// minimum TLS 1.3 is not supported, and the two have not been reconciled.
+// TLS1_2 is the safe default. If you set TLS1_3, confirm the deployment is
+// accepted rather than assuming it.
+// param storageMinimumTlsVersion = 'TLS1_2'
+
+// Minimum TLS version on the demo app.
+// param appMinimumTlsVersion = '1.2'
+
+// --- Private networking ----------------------------------------------------
+
+// This template creates its own virtual network, because it is the
+// self-contained demo. Production should use retention-only.bicep, which
+// attaches to a subnet the platform team already owns.
+//
+// Set false to skip the network and the private endpoint entirely. Only
+// sensible alongside storagePublicNetworkAccess = 'Enabled' and an entry in
+// allowedIpRanges, or nothing can reach the archive at all.
+// param deployPrivateEndpoint = true
+
+// Address space. Change if these overlap something you peer with later.
+// param vnetAddressPrefix = '10.20.0.0/16'
+// param privateEndpointSubnetPrefix = '10.20.1.0/24'
+// param verifierSubnetPrefix = '10.20.2.0/24'
