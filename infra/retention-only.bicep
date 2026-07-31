@@ -85,6 +85,17 @@ param privateDnsZoneResourceId string = ''
 @description('Name of the private endpoint resource.')
 param privateEndpointName string = 'pep-${baseName}-blob'
 
+@description('Resource ID of an existing App Service to enable diagnostic logging on. Optional. Supply it only when you want AppServiceHTTPLogs exported and the app does not already send them to this workspace; the app is otherwise left alone. Adding a diagnostic setting is additive and does not disturb any the app already has.')
+param appServiceResourceId string = ''
+
+@description('Log categories to enable on that App Service. Categories vary by plan, and naming one the plan does not support fails the deployment.')
+param appServiceLogCategories array = [
+  'AppServiceHTTPLogs'
+  'AppServiceConsoleLogs'
+  'AppServiceAppLogs'
+  'AppServicePlatformLogs'
+]
+
 @description('Name of the export rule created on the workspace.')
 param exportRuleName string = '${baseName}-export'
 
@@ -104,6 +115,14 @@ param tags object = {}
 var workspaceSubscriptionId = split(workspaceResourceId, '/')[2]
 var workspaceResourceGroup = split(workspaceResourceId, '/')[4]
 var workspaceName = split(workspaceResourceId, '/')[8]
+
+// Same reasoning for the App Service: a module scope has to be resolvable
+// before the deployment starts, so the coordinates come from splitting a
+// parameter rather than from reading the resource. The ternaries keep the
+// splits away from an empty string, which would index out of range.
+var appServiceSubscriptionId = empty(appServiceResourceId) ? subscription().subscriptionId : split(appServiceResourceId, '/')[2]
+var appServiceResourceGroup = empty(appServiceResourceId) ? resourceGroup().name : split(appServiceResourceId, '/')[4]
+var appServiceName = empty(appServiceResourceId) ? '' : split(appServiceResourceId, '/')[8]
 
 // ---------------------------------------------------------------------------
 // WORM retention tier
@@ -138,6 +157,31 @@ module wormStorage 'modules/worm-storage.bicep' = {
 // there. Created last, and only once every container carries a retention policy.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// App Service diagnostics
+//
+// Optional, and the only thing this template does to a resource it did not
+// create. Runs before the export rule: AppServiceHTTPLogs does not exist as a
+// table until the app has emitted a record, and naming a table that has never
+// received data fails the whole rule.
+//
+// Ordering alone is not enough for a brand-new setting. If AppServiceHTTPLogs
+// is in exportTables and the app has never logged to this workspace before, the
+// first deployment can still fail. Deploy once without it, let a request flow,
+// then add it.
+// ---------------------------------------------------------------------------
+
+module appDiagnostics 'modules/app-diagnostics.bicep' = if (!empty(appServiceResourceId)) {
+  name: 'deploy-app-diagnostics'
+  scope: resourceGroup(appServiceSubscriptionId, appServiceResourceGroup)
+  params: {
+    appServiceName: appServiceName
+    diagnosticSettingName: '${baseName}-app-diagnostics'
+    workspaceResourceId: workspaceResourceId
+    logCategories: appServiceLogCategories
+  }
+}
+
 module dataExport 'modules/data-export.bicep' = {
   name: 'deploy-data-export'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroup)
@@ -147,6 +191,9 @@ module dataExport 'modules/data-export.bicep' = {
     storageAccountResourceId: wormStorage.outputs.storageAccountResourceId
     exportTables: exportTables
   }
+  dependsOn: [
+    appDiagnostics
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -166,3 +213,6 @@ output privateEndpointIpAddress string = wormStorage.outputs.privateEndpointIpAd
 output exportRuleName string = dataExport.outputs.exportRuleName
 output exportedTables array = exportTables
 output retentionDays int = retentionDays
+
+@description('Diagnostic setting created on the existing App Service, or empty if none was requested.')
+output appServiceDiagnosticSetting string = empty(appServiceResourceId) ? '' : appDiagnostics!.outputs.diagnosticSettingName

@@ -106,9 +106,25 @@ The script prints a summary with the names you will need next.
 
     A locked policy makes the storage account, and therefore the resource group, undeletable until every blob has passed its retention period. On the six-year default that is six years. `teardown.sh` refuses to run when it finds a locked policy, for exactly this reason.
 
-## Production: add retention to a workspace you already own
+## Production: add retention to an estate you already have
 
-`infra/retention-only.bicep` creates the storage account, containers, policies, blob diagnostics and export rule. It creates nothing inside your workspace beyond the export rule, and does not touch your application, your Application Insights component or your existing diagnostic settings.
+`infra/retention-only.bicep` is the template for the common case, where the application, its Application Insights component and the Log Analytics workspace all exist already and only the retention tier is missing.
+
+| | Yours, untouched | Created by the template |
+| --- | --- | --- |
+| Log Analytics workspace | ✓ | |
+| Application Insights | ✓ | |
+| App Service | ✓ (see below) | |
+| Virtual network, subnet, private DNS zone | ✓ | |
+| WORM storage account | | ✓ |
+| Containers and immutability policies | | ✓ |
+| Blob diagnostics | | ✓ |
+| Blob private endpoint | | ✓ |
+| Data Export rule | | ✓ (on your workspace) |
+
+Application Insights is not referenced at all. It already writes to the workspace, and the export rule reads from the workspace, so the template has no reason to touch it.
+
+The App Service is touched only if you ask. Supplying `appServiceResourceId` adds a diagnostic setting so `AppServiceHTTPLogs` reaches the workspace and can be exported. That is additive, does not disturb settings the app already has, and leaves the app as it was if you later remove it. Omit the parameter if your platform team already wires app diagnostics, or if `AppEvents` alone is what you need retained.
 
 ### Step 1: identify the workspace
 

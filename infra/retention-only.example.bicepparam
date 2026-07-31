@@ -110,3 +110,25 @@ param workspaceResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000
 // param privateDnsZoneResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-network/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net'
 
 // param privateEndpointName = 'pep-auditlogs-blob'
+
+// --- Existing App Service (optional) ----------------------------------------
+
+// Only needed if you want AppServiceHTTPLogs in the archive and the app is not
+// already sending them to this workspace.
+//
+// This is the one thing the template touches that it did not create. A
+// diagnostic setting is a separate child resource, so it does not disturb any
+// the app already has, and removing it later leaves the app as it was.
+//
+// Leave it empty if your platform team already wires app diagnostics, or if
+// AppEvents alone is what you need retained.
+// param appServiceResourceId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-apps/providers/Microsoft.Web/sites/my-app'
+
+// Categories vary by plan, and naming one the plan does not support fails the
+// whole deployment. Trim this if your plan is limited.
+// param appServiceLogCategories = [
+//   'AppServiceHTTPLogs'
+//   'AppServiceConsoleLogs'
+//   'AppServiceAppLogs'
+//   'AppServicePlatformLogs'
+// ]

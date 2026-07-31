@@ -48,10 +48,12 @@ param storageSku string = 'Standard_ZRS'
 @maxValue(730)
 param workspaceRetentionDays int = 30
 
-@description('App Service plan SKU. B1 is the smallest tier that supports the always-on demo workload; F1 free tier cannot run it reliably.')
+@description('App Service plan SKU. B1 is the smallest that runs the demo; the F1 free tier cannot, so it is not offered. The rest of the list exists because SKU quota is granted per family and per region, and a subscription can easily have none of one and plenty of another: on the sandbox this was built against, B1, B2 and P0v3 were all at zero while B3, S1 and P1v3 were available. If a deployment fails with SubscriptionIsOverQuotaForSku, try another entry before requesting a quota increase.')
 @allowed([
   'B1'
   'B2'
+  'B3'
+  'S1'
   'P0v3'
   'P1v3'
 ])
