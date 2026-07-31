@@ -55,10 +55,9 @@ param allowSharedKeyAccess bool = false
 ])
 param publicNetworkAccess string = 'Disabled'
 
-@description('Minimum TLS version accepted on requests to the account. TLS1_3 appears in the ARM enum but parts of the Microsoft SDK reference state it is not supported, so TLS1_2 is the default until a deployment proves otherwise.')
+@description('Minimum TLS version accepted on requests to the account. TLS1_2 is the only value the storage resource provider accepts: TLS1_3 appears in the ARM enum and in the Azure Verified Modules allow-list, but a deployment on 2026-07-31 was rejected with "FeatureNotSupported: Feature MinimumTlsVersion 1.3 is not supported". Offered as a parameter so it can be widened if that changes.')
 @allowed([
   'TLS1_2'
-  'TLS1_3'
 ])
 param minimumTlsVersion string = 'TLS1_2'
 

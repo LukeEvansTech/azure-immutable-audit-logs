@@ -154,18 +154,32 @@ if [[ "$ASSUME_YES" != true ]]; then
     }
 fi
 
-echo "==> Deleting resource group $RESOURCE_GROUP"
-az group delete --name "$RESOURCE_GROUP" --yes --output none
-
+# The workspace is purged BEFORE the resource group goes, not after.
+#
+# Doing it afterwards cannot work: `az monitor log-analytics workspace delete`
+# is addressed by resource group, and once the group is deleted there is no
+# scope left to name. An earlier version of this script ran the purge last and
+# reported success regardless, because the failure went to /dev/null and the
+# `||` branch only printed a maybe. The workspace survived soft-deleted, and a
+# later deployment with the same parameters silently RECOVERED it, complete
+# with the previous run's data.
+#
+# --force is what makes the delete permanent rather than soft.
 if [[ "$PURGE_WORKSPACE" == true && -n "$WORKSPACE_NAME" && "$WORKSPACE_NAME" != "None" ]]; then
-    echo "==> Purging soft-deleted workspace $WORKSPACE_NAME"
-    # Soft-deleted workspaces hold their name for 14 days, so redeploying with
-    # the same parameters into the same resource group otherwise fails.
-    az monitor log-analytics workspace delete \
+    echo "==> Permanently deleting workspace $WORKSPACE_NAME"
+    if az monitor log-analytics workspace delete \
         --resource-group "$RESOURCE_GROUP" \
         --workspace-name "$WORKSPACE_NAME" \
-        --force true --yes --output none 2>/dev/null ||
-        echo "    purge failed or was unnecessary - the workspace may already be gone"
+        --force true --yes --output none 2>/dev/null; then
+        echo "    workspace purged"
+    else
+        echo "    WARNING: purge failed. The workspace will be soft-deleted with the" >&2
+        echo "    resource group and will hold its name for 14 days. A redeploy with" >&2
+        echo "    the same parameters may recover it, bringing its old data back." >&2
+    fi
 fi
+
+echo "==> Deleting resource group $RESOURCE_GROUP"
+az group delete --name "$RESOURCE_GROUP" --yes --output none
 
 echo "==> Done"

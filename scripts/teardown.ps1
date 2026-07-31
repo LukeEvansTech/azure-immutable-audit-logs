@@ -130,19 +130,30 @@ if (-not $Force) {
     }
 }
 
+# The workspace is purged BEFORE the resource group goes, not after.
+#
+# Doing it afterwards cannot work: the delete is addressed by resource group,
+# and once the group is gone there is no scope left to name. An earlier version
+# ran the purge last and reported success regardless, so the workspace survived
+# soft-deleted and a later deployment with the same parameters silently
+# RECOVERED it, complete with the previous run's data.
+#
+# --force is what makes the delete permanent rather than soft.
+if ($PurgeWorkspace -and $workspaceName) {
+    Write-Output "==> Permanently deleting workspace $workspaceName"
+    & az monitor log-analytics workspace delete --resource-group $ResourceGroup `
+        --workspace-name $workspaceName --force true --yes --output none 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Output '    workspace purged'
+    } else {
+        Write-Warning ('Purge failed. The workspace will be soft-deleted with the resource ' +
+            'group and will hold its name for 14 days. A redeploy with the same parameters ' +
+            'may recover it, bringing its old data back.')
+    }
+}
+
 Write-Output "==> Deleting resource group $ResourceGroup"
 & az group delete --name $ResourceGroup --yes --output none
 if ($LASTEXITCODE -ne 0) { throw "Failed to delete resource group $ResourceGroup." }
-
-if ($PurgeWorkspace -and $workspaceName) {
-    Write-Output "==> Purging soft-deleted workspace $workspaceName"
-    # Soft-deleted workspaces hold their name for 14 days, so redeploying with
-    # the same parameters into the same resource group otherwise fails.
-    & az monitor log-analytics workspace delete --resource-group $ResourceGroup `
-        --workspace-name $workspaceName --force true --yes --output none 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Output '    purge failed or was unnecessary - the workspace may already be gone'
-    }
-}
 
 Write-Output '==> Done'

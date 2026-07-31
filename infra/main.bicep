@@ -77,14 +77,13 @@ param allowSharedKeyAccess bool = false
 ])
 param storagePublicNetworkAccess string = 'Disabled'
 
-@description('Minimum TLS version accepted by the retention tier.')
+@description('Minimum TLS version accepted by the retention tier. TLS1_2 only: the storage resource provider rejects TLS1_3 with "FeatureNotSupported", despite it appearing in the ARM enum. The App Service below does accept 1.3.')
 @allowed([
   'TLS1_2'
-  'TLS1_3'
 ])
 param storageMinimumTlsVersion string = 'TLS1_2'
 
-@description('Minimum TLS version accepted by the demo app.')
+@description('Minimum TLS version accepted by the demo app. Both values are accepted by App Service and 1.3 was confirmed applied on 2026-07-31. The default stays at 1.2 because 1.3 refuses clients that cannot negotiate it, which is a decision about your callers rather than about hardening.')
 @allowed([
   '1.2'
   '1.3'

@@ -75,7 +75,9 @@ resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2
 output privateEndpointName string = privateEndpoint.name
 output privateEndpointResourceId string = privateEndpoint.id
 
-@description('The private IPv4 address the blob endpoint resolves to inside the virtual network. Useful when diagnosing whether DNS is resolving to the endpoint or to the public address.')
-output privateIpAddress string = privateEndpoint.properties.customDnsConfigs[0].ipAddresses[0]
+@description('The private IPv4 address the blob endpoint resolves to inside the virtual network, or empty if it cannot be read at this point in the deployment. Useful when diagnosing whether DNS is resolving to the endpoint or to the public address.')
+output privateIpAddress string = length(privateEndpoint.properties.customDnsConfigs) > 0 && length(privateEndpoint.properties.customDnsConfigs[0].ipAddresses) > 0
+  ? privateEndpoint.properties.customDnsConfigs[0].ipAddresses[0]
+  : ''
 
 output dnsRegistered bool = !empty(privateDnsZoneResourceId)
