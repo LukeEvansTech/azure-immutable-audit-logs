@@ -64,8 +64,24 @@ if ($StorageAccount) {
     $locked = @()
     $unlocked = @()
 
+    # Listing containers is a data-plane call, so it fails when the account's
+    # public endpoint is disabled and this machine is not on the network. An
+    # empty list is indistinguishable from "no containers", so the guard below
+    # would pass silently and report a check it never performed. Say so instead.
     $listed = & az storage container list --account-name $StorageAccount --auth-mode login `
         --query '[].name' --output tsv 2>$null
+
+    $publicAccess = & az storage account show --name $StorageAccount `
+        --resource-group $ResourceGroup --query 'publicNetworkAccess' --output tsv 2>$null
+
+    if (-not $listed -and $publicAccess -eq 'Disabled') {
+        Write-Warning ('Cannot enumerate containers: the public endpoint is disabled and this ' +
+            'machine is not on the virtual network, so the locked-policy check has NOT been ' +
+            'performed. If any policy is locked the resource group delete will fail part-way ' +
+            'rather than being refused up front. Run scripts/verify-private.sh first if you ' +
+            'need to know before committing to the delete.')
+    }
+
     if ($LASTEXITCODE -eq 0 -and $listed) {
         foreach ($container in @($listed -split "`r?`n" | Where-Object { $_ })) {
             $state = & az storage container immutability-policy show `

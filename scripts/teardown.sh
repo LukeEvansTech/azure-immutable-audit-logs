@@ -80,6 +80,33 @@ fi
 if [[ -n "$STORAGE_ACCOUNT" && "$STORAGE_ACCOUNT" != "None" ]]; then
     echo "==> Checking retention policies on $STORAGE_ACCOUNT"
 
+    # Listing containers is a data-plane call, so it fails when the account's
+    # public endpoint is disabled and this machine is not on the network. That
+    # matters more than it looks: an empty list is indistinguishable from "no
+    # containers", so the locked-policy guard below would pass silently and
+    # this script would report a clean check it never actually performed.
+    #
+    # Say so instead. The guard is a safety net, and a safety net that quietly
+    # is not there is worse than none.
+    CONTAINER_LIST=$(az storage container list \
+        --account-name "$STORAGE_ACCOUNT" \
+        --auth-mode login \
+        --query '[].name' --output tsv 2>/dev/null || true)
+
+    PUBLIC_ACCESS=$(az storage account show \
+        --name "$STORAGE_ACCOUNT" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query 'publicNetworkAccess' --output tsv 2>/dev/null || echo "")
+
+    if [[ -z "$CONTAINER_LIST" && "$PUBLIC_ACCESS" == "Disabled" ]]; then
+        echo "    NOTE: cannot enumerate containers - the public endpoint is disabled and"
+        echo "    this machine is not on the virtual network, so the locked-policy check"
+        echo "    below has NOT been performed."
+        echo "    If any policy is locked, the resource group delete will fail part-way"
+        echo "    instead of being refused up front. Run scripts/verify-private.sh first"
+        echo "    if you need to know before committing to the delete."
+    fi
+
     LOCKED=()
     UNLOCKED=()
     while IFS= read -r container; do
@@ -93,10 +120,7 @@ if [[ -n "$STORAGE_ACCOUNT" && "$STORAGE_ACCOUNT" != "None" ]]; then
         Locked) LOCKED+=("$container") ;;
         Unlocked) UNLOCKED+=("$container") ;;
         esac
-    done < <(az storage container list \
-        --account-name "$STORAGE_ACCOUNT" \
-        --auth-mode login \
-        --query '[].name' --output tsv 2>/dev/null || true)
+    done <<<"$CONTAINER_LIST"
 
     if [[ ${#LOCKED[@]} -gt 0 ]]; then
         cat >&2 <<EOF
