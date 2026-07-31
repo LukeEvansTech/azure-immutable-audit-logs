@@ -138,14 +138,20 @@ python3 -c "import socket,sys; print(socket.gethostbyname(sys.argv[1]))" ${BLOB_
     || echo "resolution failed"
 echo
 echo "--- signing in with the managed identity ---"
+# --client-id is the current flag for a user-assigned managed identity.
+# --username still exists but now means a user or service principal, so passing
+# the identity's client ID to it fails in a way that reads like the identity is
+# simply not ready yet. --username is kept only as a fallback for older CLIs.
 for i in \$(seq 1 20); do
-    if az login --identity --username ${IDENTITY_CLIENT_ID} --output none 2>/dev/null; then
+    if az login --identity --client-id ${IDENTITY_CLIENT_ID} --output none 2>/dev/null \
+        || az login --identity --username ${IDENTITY_CLIENT_ID} --output none 2>/dev/null; then
         echo "signed in on attempt \$i"
         break
     fi
     echo "attempt \$i: identity not ready, waiting"
     sleep 15
 done
+echo "identity in use: \$(az account show --query user.assignedIdentityInfo -o tsv 2>/dev/null || echo none)"
 echo
 echo "--- listing containers ---"
 for i in \$(seq 1 20); do

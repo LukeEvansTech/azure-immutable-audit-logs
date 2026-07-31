@@ -84,6 +84,23 @@ az deployment group create \
 
 See the [deployment guide](https://lukeevanstech.github.io/azure-immutable-audit-logs/deployment/) for permissions, deriving the workspace from an Application Insights component, and adding tables later.
 
+## Network posture
+
+The retention tier deploys with its public endpoint **disabled**. A blob private endpoint, registered in a private DNS zone, is the only client route to it.
+
+The private endpoint is not on the path the records travel. Data Export writes through the Azure Monitor platform, not as a network client of the account, so the endpoint governs who can read the archive rather than whether it fills. Both halves were confirmed on a live deployment: the blob service kept recording writes while a listing from outside was refused as `blocked by network rules of storage account`, with the caller holding Storage Blob Data Contributor at the time.
+
+The cost is that you cannot read the archive from your own machine. That is the point, but it means the ordinary check stops working:
+
+```bash
+./scripts/verify-private.sh --resource-group <rg> \
+  --storage-account <name> --subnet <verifier-subnet-id>
+```
+
+That creates a throwaway container inside the network, prints what it could see, and deletes itself.
+
+Storage is fixed at TLS 1.2, because the resource provider rejects `TLS1_3` with `FeatureNotSupported` despite it appearing in the ARM enum. App Service accepts 1.3 and defaults to 1.2.
+
 ## Design decisions behind it
 
 - **Containers are created with retention policies already attached**, before the export rule exists. Letting export create its own containers and applying policies afterwards leaves a window where records land unprotected - and a later policy does not retrospectively cover them.

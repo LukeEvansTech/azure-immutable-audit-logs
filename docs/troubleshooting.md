@@ -82,6 +82,39 @@ Add `--auth-mode login`. Without it the CLI attempts account-key authorisation, 
 
 This is intended behaviour. Key-authorised reads appear in the access log as anonymous shared-key requests with no user attached, which destroys the attribution the archive exists to provide.
 
+## `blocked by network rules of storage account`
+
+The public endpoint is disabled and you are not on the virtual network. This is the hardened configuration working, not a fault.
+
+Distinguish it from a permissions failure before doing anything else, because the two get confused constantly:
+
+| Message | Cause |
+| --- | --- |
+| `blocked by network rules of storage account` | network. You are outside, or DNS sent you to the public address |
+| `AuthorizationPermissionMismatch`, `do not have the required permissions` | RBAC. You lack a data-plane role |
+
+To read the archive, run `scripts/verify-private.sh`, or place yourself on the network some other way. Opening a firewall hole defeats the arrangement.
+
+## A client on the network still gets 403
+
+Almost always DNS. The client resolved the account to its public address, reached the public endpoint, and was rejected by the firewall, which surfaces as an authorisation failure rather than anything network-shaped.
+
+Check what the name resolves to from the client:
+
+```bash
+python3 -c "import socket;print(socket.gethostbyname('<account>.blob.core.windows.net'))"
+```
+
+A private address (`10.x`, `172.16-31.x`, `192.168.x`) means DNS is correct and the problem really is RBAC. A public address means the private DNS zone is missing, not linked to the virtual network, or has no record for this account. The zone must be linked to the network the client sits in, not merely to exist.
+
+## The verification container fails to start
+
+Two failures worth knowing, both encountered on first use:
+
+**`InvalidOsType: The 'osType' for container group '<null>' is invalid.`** `az container create` infers the OS from the image normally, but not when `--subnet` is supplied. Pass `--os-type Linux` explicitly. The null container group name makes this read like a malformed request rather than a missing default.
+
+**Twenty retries of "identity not ready".** `az login --identity --username <client-id>` is the old syntax. `--username` now means a user or service principal, so an identity client ID passed to it fails in a way indistinguishable from an identity that has not finished provisioning. Use `--client-id`.
+
 ## The portal downloaded a blob but no user appears in the logs
 
 The portal prefers the **account key** whenever your identity can retrieve one, and does not say so. Check the authentication method at the top of the container view in **Storage browser** and switch it to Entra ID.

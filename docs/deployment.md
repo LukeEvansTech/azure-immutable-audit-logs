@@ -32,6 +32,32 @@ The two templates need different things, because the export rule is created at t
 
 Contributor on the storage account does **not** grant data-plane access. Reading a blob needs a data role, and with shared key access disabled there is no key to fall back on. Grant yourself Storage Blob Data Reader if you intend to look at the contents.
 
+A data role is necessary but not sufficient. The account deploys with its public endpoint disabled, so a client outside the virtual network is refused regardless of what it holds. See [Checking the archive](#checking-the-archive).
+
+### Networking
+
+`main.bicep` creates a virtual network with two subnets, because the demo has to stand alone. `retention-only.bicep` takes both of these as parameters instead:
+
+| Parameter | What it needs |
+| --- | --- |
+| `privateEndpointSubnetResourceId` | An existing subnet with `privateEndpointNetworkPolicies` **disabled**. Without that the endpoint deploys and then receives no traffic. |
+| `privateDnsZoneResourceId` | An existing `privatelink.blob` zone, **linked to the network your clients sit in**. A zone that exists but is not linked resolves nothing, and the symptom is a 403 rather than a DNS error. |
+
+Both are usually owned by a platform team. Leaving `privateDnsZoneResourceId` empty creates the endpoint without registration, which is only right if someone else registers it.
+
+### Checking the archive
+
+With the public endpoint disabled, `verify.sh` cannot reach the blobs from your machine and will say so. Use the in-network check instead:
+
+```bash
+./scripts/verify-private.sh \
+  --resource-group <rg> \
+  --storage-account <name> \
+  --subnet <verifier-subnet-id>
+```
+
+`main.bicep` outputs the subnet as `verifierSubnetResourceId`. The script creates a user-assigned identity, grants it Storage Blob Data Reader, runs a container in that subnet, prints what the container could see, and removes both. Add `--keep` to leave them in place for debugging.
+
 ## Quickstart: the self-contained demo
 
 Stands up the whole pipeline in a throwaway resource group, including an app that emits events.

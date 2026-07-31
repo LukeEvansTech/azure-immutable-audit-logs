@@ -142,6 +142,53 @@ The demo app therefore constructs the SDK with `EnableAdaptiveSampling = false`.
 
 A related habit: aggregate with `sum(ItemCount)` rather than `count()`. With sampling off the two agree. If they ever disagree, sampling has been turned back on somewhere.
 
+## Network posture
+
+The retention tier is deployed with its public endpoint switched off. A blob private endpoint, registered in a private DNS zone, is the only route a client has to it.
+
+The thing to understand before changing any of this is that **the private endpoint is not on the path the records travel**. Data Export writes through the Azure Monitor platform, not as a network client of the storage account. So the endpoint governs who can *read* the archive; it has no bearing on whether the archive fills.
+
+```mermaid
+flowchart LR
+    A[Application] --> B[Application Insights]
+    B --> C[Log Analytics]
+    C -->|"Data Export<br/><small>trusted-services path</small>"| D[(WORM storage<br/>public access disabled)]
+    E["Operator or<br/>retrieval tool"] -->|"private endpoint<br/><small>10.x.x.x</small>"| D
+    F["Anything on<br/>the internet"] -.->|blocked| D
+```
+
+!!! note "Both halves confirmed against a live deployment"
+
+    On 2026-07-31, against a storage account with `publicNetworkAccess` set to `Disabled`:
+
+    - the blob service recorded a 548 KB ingress burst matching a batch of events, then steady writes every five minutes, so **export was writing**
+    - a blob listing from outside the network was refused with "blocked by network rules of storage account", **while the caller held Storage Blob Data Contributor**, so the refusal was the firewall and not permissions
+    - a container inside the virtual network resolved the account to its private address, listed both containers and read a blob
+
+    Microsoft's published guidance for export describes the firewall-plus-trusted-services shape rather than this one, and the behaviour is explained elsewhere as trusted-services access taking precedence over network restrictions. It works, but it is worth re-checking after any platform change rather than assumed to be contractual.
+
+### What it costs you
+
+You cannot read the archive from your own machine any more, which is the point, but it does mean the ordinary verification path stops working. `scripts/verify.sh` reports the containers as unreachable and correctly says so rather than blaming permissions.
+
+Use `scripts/verify-private.sh` instead. It creates a user-assigned identity, grants it Storage Blob Data Reader, runs a throwaway container in the verifier subnet, prints what that container could see, and deletes itself.
+
+### Two subnets, not one
+
+The private endpoint subnet needs `privateEndpointNetworkPolicies` disabled or the endpoint deploys and then receives nothing. The verifier subnet is delegated to Azure Container Instances, and a delegated subnet cannot host anything else. They therefore cannot be the same subnet.
+
+`main.bicep` creates both, because it is the self-contained demo. `retention-only.bicep` takes an existing subnet and DNS zone, because a landing zone owns its address space and a template that invents one produces an island nothing can route to.
+
+### TLS
+
+The storage account is fixed at TLS 1.2. `TLS1_3` appears in the ARM enum and in the Azure Verified Modules allow-list, but the resource provider rejects it:
+
+```text
+FeatureNotSupported: Feature MinimumTlsVersion 1.3 is not supported.
+```
+
+App Service is the opposite case: 1.3 is accepted and applied. The app defaults to 1.2 anyway, because requiring 1.3 refuses clients that cannot negotiate it, which is a decision about your callers rather than about hardening.
+
 ## Limits
 
 - A workspace supports at most **10 active export rules**.
