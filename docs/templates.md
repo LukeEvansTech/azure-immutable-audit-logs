@@ -201,7 +201,7 @@ Two subnets, because they cannot be one:
 | `snet-private-endpoints` | `privateEndpointNetworkPolicies: 'Disabled'`, or the endpoint deploys and then receives no traffic |
 | `snet-verifier` | delegated to `Microsoft.ContainerInstance/containerGroups`, and a delegated subnet cannot host anything else |
 
-The zone name is derived rather than hard-coded:
+The zone name is derived rather than hardcoded:
 
 ```bicep
 var privateDnsZoneName = 'privatelink.blob.${environment().suffixes.storage}'

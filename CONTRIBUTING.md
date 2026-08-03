@@ -67,6 +67,11 @@ the pipeline can be seen working end-to-end.
 
 - Run the repo's linters before pushing: super-linter (via `LukeEvansTech/shared-workflows`),
   `az bicep build`, `dotnet build`, `shellcheck`, `zensical build`.
+- **Commit before running super-linter locally, not after.** It gathers the file list
+  through git, so anything still untracked is invisible to it and passes by not being
+  looked at. A run that reports every linter green while your new file is untracked has
+  told you nothing about that file. This has caught out new `.ps1` files and a new docs
+  page; CI notices because by then the files are committed.
 - Never commit `infra/*.bicepparam` (only the `.example.` ones), or anything containing
   subscription IDs, tenant IDs, workspace resource IDs, IP addresses or email addresses -
   this repo is public.
