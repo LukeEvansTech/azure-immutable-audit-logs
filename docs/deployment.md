@@ -126,6 +126,14 @@ Application Insights is not referenced at all. It already writes to the workspac
 
 The App Service is touched only if you ask. Supplying `appServiceResourceId` adds a diagnostic setting so `AppServiceHTTPLogs` reaches the workspace and can be exported. That is additive, does not disturb settings the app already has, and leaves the app as it was if you later remove it. Omit the parameter if your platform team already wires app diagnostics, or if `AppEvents` alone is what you need retained.
 
+!!! note "`appServiceResourceId` has had less exercise than the rest"
+
+    Everything else here has been deployed and watched working. This one parameter has not: the subscription it was built against had no App Service quota left to stand a throwaway app up on, so the branch is compile-checked rather than run.
+
+    It creates a single diagnostic setting through the same scoped-module pattern as the export rule, which is proven, so there is not much room for it to go wrong. The realistic failure is a category your plan does not support, and that fails at deployment with a message naming the category rather than doing anything quiet.
+
+    Deploy it once on its own before adding `AppServiceHTTPLogs` to `exportTables`, and check the setting appears under the app's **Diagnostic settings** blade.
+
 ### Step 1: identify the workspace
 
 Export runs from a Log Analytics workspace, not from an Application Insights component. If you have a component, this returns the workspace behind it:
