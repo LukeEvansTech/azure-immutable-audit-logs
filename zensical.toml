@@ -6,6 +6,7 @@ copyright = "Copyright 2026 Luke Evans - MIT licensed."
 nav = [
     { "Overview" = "index.md" },
     { "How it works" = "how-it-works.md" },
+    { "The templates" = "templates.md" },
     { "Deployment" = "deployment.md" },
     { "Retrieving records" = "retrieval.md" },
     { "Troubleshooting" = "troubleshooting.md" },
