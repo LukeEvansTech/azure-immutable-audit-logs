@@ -74,6 +74,8 @@ public enum TelemetryOutcome
 /// </summary>
 public class TelemetryService
 {
+    private static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(30);
+
     private readonly TelemetryClient _telemetryClient;
 
     public TelemetryService(TelemetryClient telemetryClient)
@@ -140,9 +142,16 @@ public class TelemetryService
         // be terminated - which is often exactly why the event is critical - an
         // unflushed buffer is lost, and a missing record is indistinguishable
         // from an event that never happened.
+        //
+        // From SDK 3.x the synchronous Flush() waits for the export to finish,
+        // so a slow ingestion endpoint would hold the request for as long as the
+        // HTTP timeout. The flush is started here and not awaited, with its own
+        // time limit, which keeps the 2.x behaviour of queuing the send.
         if (severity == TelemetrySeverity.Critical)
         {
-            _telemetryClient.Flush();
+            var cts = new CancellationTokenSource(FlushTimeout);
+            _ = _telemetryClient.FlushAsync(cts.Token)
+                .ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
         }
     }
 }
