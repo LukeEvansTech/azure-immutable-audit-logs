@@ -4,7 +4,10 @@ using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adaptive sampling is ON by default in this SDK. It must not be, here.
+// Sampling is ON by default in this SDK. It must not be, here. From SDK 3.x the
+// default is a rate limiter (a few traces per second), and events tracked inside
+// a request inherit that request's sampling decision, so an audit event raised
+// during a sampled-out request is dropped with it.
 //
 // Sampling discards a proportion of telemetry under load and scales the
 // surviving records' ItemCount to keep aggregate metrics roughly right. That is
@@ -16,9 +19,14 @@ var builder = WebApplication.CreateBuilder(args);
 //
 // If you raise event volume enough to care about ingestion cost, reduce what you
 // emit deliberately rather than letting sampling choose for you.
+//
+// SamplingRatio = 1.0 keeps every trace, which also turns the rate limiter off.
+// EnableTraceBasedLogsSampler = false stops events from following a trace's
+// sampling decision, so they stay complete even if sampling is set elsewhere.
 builder.Services.AddApplicationInsightsTelemetry(new ApplicationInsightsServiceOptions
 {
-    EnableAdaptiveSampling = false
+    SamplingRatio = 1.0f,
+    EnableTraceBasedLogsSampler = false
 });
 
 builder.Services.AddSingleton<TelemetryService>();

@@ -140,9 +140,50 @@ public class TelemetryService
         // be terminated - which is often exactly why the event is critical - an
         // unflushed buffer is lost, and a missing record is indistinguishable
         // from an event that never happened.
+        //
         if (severity == TelemetrySeverity.Critical)
         {
-            _telemetryClient.Flush();
+            RequestFlush();
         }
+    }
+
+    // From SDK 3.x Flush() blocks until the export finishes, and FlushAsync's
+    // token does not interrupt it, so a stalled ingestion endpoint would hold
+    // the request (or a pool thread per call) for the whole HTTP timeout. Flushes
+    // therefore run on one background worker: a request made while one is in
+    // flight is folded into a single follow-up flush, so at most one thread is
+    // ever blocked and the request itself returns at once, as it did in 2.x.
+    private int _flushRequested;
+    private int _flushRunning;
+
+    private void RequestFlush()
+    {
+        Volatile.Write(ref _flushRequested, 1);
+        if (Interlocked.CompareExchange(ref _flushRunning, 1, 0) == 0)
+        {
+            _ = Task.Run(FlushLoop);
+        }
+    }
+
+    private void FlushLoop()
+    {
+        do
+        {
+            try
+            {
+                while (Interlocked.Exchange(ref _flushRequested, 0) == 1)
+                {
+                    _telemetryClient.Flush();
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref _flushRunning, 0);
+            }
+        }
+        // A request that landed after the loop's last check but before the
+        // worker stood down would otherwise wait for the next Critical event.
+        while (Volatile.Read(ref _flushRequested) == 1
+               && Interlocked.CompareExchange(ref _flushRunning, 1, 0) == 0);
     }
 }

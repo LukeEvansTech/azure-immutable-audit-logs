@@ -209,7 +209,7 @@ AppEvents
 | summarize Rows = count(), Events = sum(ItemCount)
 ```
 
-If `Events` exceeds `Rows`, adaptive sampling is active and the archive is **not** a complete account of what the application did. Sampling is on by default in the SDK; the demo app disables it explicitly. See [How it works](how-it-works.md#why-sampling-is-disabled).
+If `Events` exceeds `Rows`, sampling is active and the archive is **not** a complete account of what the application did. Sampling is on by default in the SDK; the demo app disables it explicitly. See [How it works](how-it-works.md#why-sampling-is-disabled).
 
 Also check the obvious: `Properties.UserId` versus the built-in `UserId` column. A query filtering on the wrong one returns nothing and looks like missing data.
 
