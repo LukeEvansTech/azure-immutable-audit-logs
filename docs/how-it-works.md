@@ -134,11 +134,11 @@ Easy Auth terminates sign-in at the App Service edge and forwards the signed-in 
 
 ## Why sampling is disabled
 
-Adaptive sampling is on by default in the Application Insights ASP.NET Core SDK. It discards a proportion of telemetry under load and scales the survivors' `ItemCount` so aggregate metrics stay roughly right.
+Sampling is on by default in the Application Insights ASP.NET Core SDK. It discards a proportion of telemetry under load and scales the survivors' `ItemCount` so aggregate metrics stay roughly right. From SDK 3.x the default is a rate limiter of a few traces per second, and a custom event follows the sampling decision of the request it was raised in, so an audit event inside a sampled-out request is dropped with it.
 
 That is a good trade for performance monitoring and a bad one here. A sampled audit archive is not a complete account of what the application did, and nothing at query time can recover a record that was never sent. Worse, it fails quietly: the archive looks complete, and its incompleteness only surfaces when someone asks for a specific event that was dropped.
 
-The demo app therefore constructs the SDK with `EnableAdaptiveSampling = false`. **If you take one thing from this repository into your own application, take that.**
+The demo app therefore constructs the SDK with `SamplingRatio = 1.0f`, which keeps every trace and turns the rate limiter off, and `EnableTraceBasedLogsSampler = false`, which stops events from following a trace's sampling decision. **If you take one thing from this repository into your own application, take that.**
 
 A related habit: aggregate with `sum(ItemCount)` rather than `count()`. With sampling off the two agree. If they ever disagree, sampling has been turned back on somewhere.
 
